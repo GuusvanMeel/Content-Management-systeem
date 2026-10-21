@@ -25,21 +25,47 @@ VPS). Dit document legt de keuzes vast die daarbinnen nog open stonden.
 - **Let op**: MariaDB op Linux is hoofdlettergevoelig voor tabelnamen
   (`lower_case_table_names=0`); queries gebruiken daarom exact de ERD-namen.
 
-## R3. Sessies (FR-010, FR-019)
+## R3. Sessies (FR-010, FR-019, FR-019a)
 
 - **Decision**: eigen sessietabel `Session` in MariaDB. Na inloggen krijgt de browser een
-  willekeurig token (32 bytes) in een cookie met `HttpOnly`, `Secure`, `SameSite=Strict`; de
-  database bewaart alleen de SHA-256-hash van het token. Een sessie heeft geen vervaltijd; de
-  cookie krijgt de maximale levensduur die browsers toestaan (400 dagen) en wordt bij elk
-  verzoek verlengd.
+  willekeurig token (32 bytes) in de cookie `sid` met `HttpOnly`, `Secure`,
+  `SameSite=Strict`, `Path=/` en **zonder** `Expires`/`Max-Age`: een sessiecookie, die de
+  browser weggooit bij het sluiten. De database bewaart alleen de SHA-256-hash van het token
+  en het tijdstip van de laatste activiteit (`lastActivityAt`, UTC).
+  - **Glijdende time-out**: een sessie is geldig zolang
+    `lastActivityAt >= UTC_TIMESTAMP() - INTERVAL 60 MINUTE`. Elk geauthenticeerd verzoek zet
+    `lastActivityAt` op `UTC_TIMESTAMP()`. De vergelijking gebeurt in de database (één klok,
+    geen verschil tussen container- en databasetijd).
+  - **Weigeren**: een verzoek met een cookie waarvan de sessie niet (meer) bestaat of verlopen
+    is, krijgt `401 session_expired`; een verlopen rij wordt daarbij meteen verwijderd en de
+    cookie gewist. Een verzoek zonder cookie krijgt `401 not_authenticated`.
+  - **Instelbaar**: de time-out komt uit `SESSION_IDLE_TIMEOUT_MINUTES` (standaard 60), zodat
+    hij voor handmatig testen tijdelijk korter kan.
+  - Beheerder en organisatie volgen dezelfde regels (zelfde tabel, zelfde middleware).
 - **Rationale**: FR-010 vraagt dat alle sessies van één organisatie in één keer beëindigd
-  kunnen worden bij codewijziging en verwijderen (niet bij een wachtwoordreset):
-  `DELETE FROM Session WHERE organisationId = ?`. Dat is met een eigen tabel
-  triviaal en met JWT's niet mogelijk zonder blocklist. Door alleen de hash op te slaan is een
-  databaselek geen sessielek.
+  kunnen worden bij codewijziging en verwijderen: `DELETE FROM Session WHERE
+  organisationId = ?`. Dat is met een eigen tabel triviaal en met JWT's niet mogelijk zonder
+  blocklist. Door alleen de hash op te slaan is een databaselek geen sessielek. De sessiecookie
+  plus serverzijdige time-out geeft het gewone, verwachte gedrag; de serverzijdige controle is
+  leidend, omdat browsers die "verdergaan waar je was" ook sessiecookies kunnen herstellen.
 - **Alternatives considered**: JWT (niet in te trekken, FR-010 niet haalbaar);
   `express-session` met een MariaDB-store (sessies zijn daar niet op organisatie te zoeken
-  zonder de sessiedata te parsen).
+  zonder de sessiedata te parsen); een vaste `expiresAt` per sessie (moet bij elk verzoek
+  herberekend worden en zegt hetzelfde als `lastActivityAt` + time-out); `lastActivityAt`
+  hooguit eens per minuut bijwerken (bespaart schrijfacties, maar maakt de 60 minuten
+  onnauwkeurig; bij dit kleine aantal gebruikers niet nodig).
+
+## R3a. Opruimen van verlopen sessies (FR-019b)
+
+- **Decision**: een taak in het `api`-proces (`backend/src/jobs/sessionCleanup.js`) die bij
+  het starten en daarna elke 15 minuten `DELETE FROM Session WHERE lastActivityAt <
+  UTC_TIMESTAMP() - INTERVAL <time-out> MINUTE` uitvoert. Fouten worden gelogd en stoppen de
+  API niet. Een index op `lastActivityAt` houdt dit goedkoop.
+- **Rationale**: er draait precies één `api`-container (constitution II), dus een interval in
+  het proces is voldoende en vraagt geen extra container of databaseconfiguratie. Het opruimen
+  is alleen onderhoud: verlopen sessies worden ook zonder opruimen al geweigerd (R3).
+- **Alternatives considered**: MariaDB Event Scheduler (staat standaard uit en is minder
+  zichtbaar in de code); een aparte cron-container (extra onderdeel voor één query).
 
 ## R4. CSRF-bescherming
 

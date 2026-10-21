@@ -26,7 +26,8 @@ cursussen, video's, publiceren, Quest-koppeling. Zie requirements FR-01 t/m FR-0
 - Q: Mag een ingelogde organisatie haar eigen wachtwoord wijzigen? → A: Nee, alleen de beheerder
   stelt wachtwoorden in of reset ze.
 - Q: Na hoeveel inactiviteit wordt een gebruiker automatisch uitgelogd? → A: Nooit; een sessie
-  eindigt alleen bij expliciet uitloggen (of door FR-010).
+  eindigt alleen bij expliciet uitloggen (of door FR-010). *Vervangen op 2026-10-21, zie
+  hieronder.*
 - Q: Typt de beheerder de organisatiecode zelf of maakt het systeem die aan? → A: Het systeem
   stelt een code voor op basis van de naam; de beheerder kan die accepteren of aanpassen.
 - Q: Wat gebeurt er na herhaalde mislukte inlogpogingen? → A: Niets; er is geen blokkering of
@@ -36,6 +37,14 @@ cursussen, video's, publiceren, Quest-koppeling. Zie requirements FR-01 t/m FR-0
   organisatie, in te zien in de beheeromgeving; inlogpogingen worden niet gelogd.
 - Q: Moeten lopende sessies eindigen als de beheerder het wachtwoord reset? → A: Nee; alleen
   het wijzigen van de code en het verwijderen van de organisatie beëindigen sessies (FR-010).
+
+### Session 2026-10-21
+
+- Q: Hoe lang blijft een gebruiker ingelogd? → A: Gewoon sessiegedrag, voor beheerder en
+  organisaties gelijk: de sessie eindigt bij het sluiten van de browser en na 60 minuten zonder
+  activiteit (elke actie verlengt de sessie). Verlopen sessies worden geweigerd en periodiek
+  opgeruimd. Codewijziging en verwijderen beëindigen sessies nog steeds direct (FR-010). Dit
+  vervangt het eerdere antwoord "nooit automatisch uitloggen".
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -192,8 +201,16 @@ haar eigen of de standaardhuisstijl.
   verwijdert? De lopende sessie(s) van die organisatie vervallen; bij de volgende actie moet
   opnieuw worden ingelogd.
 - Wat gebeurt er als een organisatie is ingelogd terwijl de beheerder haar wachtwoord reset? De
-  lopende sessie(s) blijven gewoon werken; het nieuwe wachtwoord geldt pas bij de volgende keer
-  inloggen.
+  lopende sessie(s) blijven werken tot ze op de normale manier eindigen (FR-019); het nieuwe
+  wachtwoord geldt bij de volgende keer inloggen.
+- Wat gebeurt er als een gebruiker 60 minuten niets doet en dan weer klikt? De sessie is
+  verlopen; de gebruiker gaat naar de inlogpagina met de melding dat de sessie verlopen is.
+  Niet-opgeslagen invoer in een formulier gaat daarbij verloren.
+- Wat gebeurt er met meerdere tabbladen? Ze delen één sessie; activiteit in één tabblad houdt de
+  sessie voor alle tabbladen actief.
+- Wat gebeurt er als de browser bij het opstarten de vorige sessie herstelt ("verdergaan waar je
+  was")? Sommige browsers bewaren dan ook sessiecookies; de 60 minuten-grens blijft gelden, dus
+  na meer dan 60 minuten moet toch opnieuw worden ingelogd.
 - Velden met alleen spaties (naam, code) worden als leeg behandeld en geweigerd.
 - Een ongeldige kleurwaarde (geen geldige kleur) wordt geweigerd.
 - Een verwijderde organisatie houdt haar organisatiecode bezet: de beheerder kan die code niet
@@ -260,9 +277,17 @@ haar eigen of de standaardhuisstijl.
   niet verraadt of de code of gebruikersnaam bestaat.
 - **FR-018**: Het systeem blokkeert of vertraagt herhaalde mislukte inlogpogingen niet; elke
   poging wordt los beoordeeld.
-- **FR-019**: Gebruikers (beheerder en organisaties) MUST kunnen uitloggen. Een sessie
-  verloopt niet automatisch door inactiviteit; zij eindigt alleen bij uitloggen of in de
-  gevallen van FR-010.
+- **FR-019**: Gebruikers (beheerder en organisaties) MUST kunnen uitloggen. Voor beide gelden
+  dezelfde sessieregels:
+  - een sessie MUST eindigen wanneer de browser wordt gesloten (de sessie wordt niet langer
+    bewaard dan de browsersessie);
+  - een sessie MUST eindigen na 60 minuten zonder activiteit; elke actie van de ingelogde
+    gebruiker verlengt de sessie met 60 minuten vanaf dat moment;
+  - een sessie MUST daarnaast direct eindigen in de gevallen van FR-010.
+- **FR-019a**: Een verlopen of beëindigde sessie MUST bij het volgende verzoek geweigerd worden;
+  de gebruiker ziet de melding dat de sessie verlopen is en moet opnieuw inloggen.
+- **FR-019b**: Het systeem MUST verlopen sessies periodiek (minstens elk kwartier) uit de
+  opslag verwijderen.
 - **FR-020**: Het systeem MUST NOT een zelfstandige "wachtwoord vergeten"-functie bieden; het
   inlogscherm MUST verwijzen naar de beheerder voor een nieuw wachtwoord.
 
@@ -326,6 +351,8 @@ haar eigen of de standaardhuisstijl.
   direct na het opslaan.
 - **SC-007**: Docenten zonder technische kennis kunnen zelfstandig inloggen en hun huisstijl
   instellen (NFR-03).
+- **SC-008**: 100% van de verzoeken met een sessie die langer dan 60 minuten niet gebruikt is,
+  wordt geweigerd; een sessie die binnen 60 minuten weer gebruikt wordt, blijft geldig.
 
 ## Assumptions
 

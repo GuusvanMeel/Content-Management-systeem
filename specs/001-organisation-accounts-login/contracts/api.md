@@ -5,8 +5,13 @@ de logo-upload (`multipart/form-data`).
 
 ## Algemeen
 
-- **Authenticatie**: cookie `sid` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`), gezet
+- **Authenticatie**: cookie `sid` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, zonder
+  `Expires`/`Max-Age`: een sessiecookie die verdwijnt bij het sluiten van de browser), gezet
   bij inloggen (research R3).
+- **Sessieduur** (FR-019, gelijk voor beheerder en organisatie): een sessie verloopt na 60
+  minuten zonder geauthenticeerd verzoek. **Elk** geauthenticeerd verzoek (ook `GET`, inclusief
+  `GET /api/auth/me`) verlengt de sessie met 60 minuten vanaf dat moment. Inlogverzoeken en
+  verzoeken zonder geldige sessie verlengen niets.
 - **CSRF**: elk `POST`/`PUT`/`PATCH`/`DELETE`-verzoek MUST de header `X-Requested-With: cms`
   bevatten, anders `403 csrf_header_missing` (research R4).
 - **Foutformaat** (alle 4xx/5xx):
@@ -17,8 +22,14 @@ de logo-upload (`multipart/form-data`).
   ```
 
   `fields` is alleen aanwezig bij `400 validation_failed`.
-- **Statuscodes**: `401 not_authenticated` (geen of ongeldige sessie), `403 forbidden` (verkeerde
-  rol), `404 not_found` (ook voor verwijderde organisaties), `409 conflict` (uniciteit).
+- **Statuscodes**:
+  - `401 not_authenticated`: er is geen cookie `sid` meegestuurd. Melding "Je bent niet
+    ingelogd."
+  - `401 session_expired`: er is wel een cookie `sid`, maar de sessie is verlopen (60 minuten
+    inactief) of beëindigd (codewijziging, organisatie verwijderd, FR-010). De response wist de
+    cookie. Melding "Je sessie is verlopen. Log opnieuw in." (FR-019a)
+  - `403 forbidden` (verkeerde rol), `404 not_found` (ook voor verwijderde organisaties),
+    `409 conflict` (uniciteit).
 
 ## Authenticatie
 
@@ -40,13 +51,14 @@ Body: `{ "loginCode": "string", "password": "string" }` (code hoofdletterongevoe
 
 ### `POST /api/auth/logout`
 
-- `204`; sessierij verwijderd en cookie gewist. Ook `204` als er geen sessie was.
+- `204`; sessierij verwijderd en cookie gewist. Ook `204` als er geen of een verlopen sessie
+  was.
 
 ### `GET /api/auth/me`
 
 - `200` als beheerder: `{ "role": "admin", "username": "beheer" }`
 - `200` als organisatie: `{ "role": "organisation", "organisation": { "id": 3, "name": "Zwembad De Hoven", "loginCode": "ZWEMBAD-DE-HOVEN" } }`
-- `401 not_authenticated`.
+- `401 not_authenticated` of `401 session_expired`.
 
 ## Beheer (alleen beheerderssessie, anders `401`/`403`)
 

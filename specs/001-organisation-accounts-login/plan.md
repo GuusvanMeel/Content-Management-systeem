@@ -13,7 +13,9 @@ wachtwoord, zien alleen de gegevens van hun eigen organisatie en kunnen een huis
 (twee kleuren en een logo) instellen.
 
 Technisch: een Express 5-API (ES modules) met sessies in een eigen MariaDB-tabel zodat de
-beheerder alle sessies van een organisatie kan beëindigen; argon2id voor wachtwoorden; het
+beheerder alle sessies van een organisatie kan beëindigen; gewone sessies: een sessiecookie
+(weg bij sluiten van de browser) en een glijdende time-out van 60 minuten inactiviteit, met
+periodiek opruimen van verlopen sessies; argon2id voor wachtwoorden; het
 organisatie-id komt uitsluitend uit de sessie; logo's staan op schijf en worden door nginx
 geserveerd. Vue 3-frontend met aparte routes voor beheer en organisatie. Alles in Docker
 Compose (nginx, api, MariaDB 11.8). Zie [research.md](research.md).
@@ -39,7 +41,8 @@ Vue Test Utils
 schermen laden binnen 1 s; inloggen binnen 1 s ondanks argon2id
 
 **Constraints**: één VPS (constitution II); geen geheimen in git (IV); HTTPS verplicht in
-productie vanwege `Secure`-cookies; logo max. 2 MB
+productie vanwege `Secure`-cookies; logo max. 2 MB; sessie verloopt na 60 minuten
+inactiviteit en bij sluiten van de browser (FR-019)
 
 **Scale/Scope**: tientallen organisaties, één of enkele beheerders; 8 schermen
 ([contracts/ui.md](contracts/ui.md)), 17 API-routes ([contracts/api.md](contracts/api.md))
@@ -110,11 +113,13 @@ backend/
 │   │   ├── knex.js
 │   │   └── migrations/     # Administrator, Organisation, OrganisationStyle, Session, AdminActionLog
 │   ├── middleware/
-│   │   ├── session.js      # cookie → req.auth
+│   │   ├── session.js      # cookie → req.auth, time-out controleren en verlengen
 │   │   ├── requireAdmin.js
 │   │   ├── requireOrganisation.js
 │   │   ├── csrf.js
 │   │   └── errorHandler.js
+│   ├── jobs/
+│   │   └── sessionCleanup.js # verlopen sessies elke 15 min opruimen (R3a)
 │   ├── lib/
 │   │   ├── password.js     # argon2id
 │   │   ├── codes.js        # normaliseren/voorstellen loginCode, genereren questLinkCode

@@ -58,11 +58,30 @@ Verwacht: alle tests groen. De integratietests dekken minimaal de scenario's hie
 | 11 | Upload als logo een `.txt` hernoemd naar `.png`, en een bestand van 3 MB | Beide geweigerd met melding; vorig logo blijft | FR-025 |
 | 12 | Open het geüploade logo-URL direct in de browser | Afbeelding getoond; response heeft `X-Content-Type-Options` en `Content-Security-Policy` | R7 |
 | 13 | Als beheerder: reset het wachtwoord van A terwijl A in een andere browser is ingelogd | A blijft ingelogd en kan doorwerken; na uitloggen werkt het oude wachtwoord niet meer, het nieuwe wel | FR-009, FR-010 |
-| 13b | Als beheerder: wijzig de code van A terwijl A in een andere browser is ingelogd | A wordt bij de volgende actie naar `/login` gestuurd; alleen de nieuwe code werkt | FR-008, FR-010 |
+| 13b | Als beheerder: wijzig de code van A terwijl A in een andere browser is ingelogd | A wordt bij de volgende actie naar `/login` gestuurd met "Je sessie is verlopen. Log opnieuw in."; alleen de nieuwe code werkt | FR-008, FR-010, FR-019a |
 | 14 | Als beheerder: verwijder A, annuleer de bevestiging | A bestaat nog | FR-011 |
 | 15 | Verwijder A en bevestig | A weg uit overzicht; inloggen als A faalt; nieuwe organisatie met A's code geweigerd; logboek toont `delete` | FR-011, FR-012, FR-027 |
 | 16 | Open het logboek | Alle acties uit deze lijst, nieuwste eerst, zonder wachtwoorden | FR-028 |
 | 17 | Doe 10 mislukte inlogpogingen achter elkaar en daarna een juiste | Juiste poging slaagt meteen | FR-018 |
+
+## Sessieduur (FR-019, FR-019a, FR-019b, SC-008)
+
+Zet voor deze scenario's in `.env` tijdelijk `SESSION_IDLE_TIMEOUT_MINUTES=2` en herstart de
+API (`docker compose up -d api`). **Zet de waarde daarna terug op 60** (of verwijder de regel).
+
+| # | Stappen | Verwacht resultaat | Spec |
+| --- | --- | --- | --- |
+| 18 | Log in als organisatie, doe 3 minuten niets, klik dan op "Huisstijl" | Inlogpagina met de melding "Je sessie is verlopen. Log opnieuw in."; na inloggen terug op "Huisstijl" | FR-019, FR-019a |
+| 19 | Log in als organisatie en klik 5 minuten lang ongeveer elke minuut op een menu-item | Blijft ingelogd: elke actie verlengt de sessie | FR-019, SC-008 |
+| 20 | Herhaal 18 als beheerder op `/admin` | Zelfde gedrag; melding op `/admin/login` | FR-019 |
+| 21 | Log in, laat het tabblad 3 minuten open staan zonder iets te doen en kijk of de pagina zelf verzoeken doet (devtools, tabblad Network) | Geen verzoeken op de achtergrond; na 3 minuten is de sessie verlopen | contracts/ui.md |
+| 22 | Log in als organisatie, sluit de browser volledig (alle vensters) en open hem opnieuw op `/` | Inlogpagina zonder verloopmelding: de cookie is weg. Herstelt de browser de vorige sessie ("verdergaan waar je was"), dan kan de cookie blijven bestaan; de sessie verloopt dan alsnog na de time-out | FR-019 |
+| 23 | Controleer de cookie in devtools (Application → Cookies) na inloggen | `sid` heeft geen vervaldatum ("Session"), en `HttpOnly`, `Secure` en `SameSite=Strict` staan aan | research R3 |
+| 24 | Wacht na scenario 18 maximaal 15 minuten en tel de verlopen rijen: `docker compose exec db mariadb -u <DB_USER> -p <DB_NAME> -e "SELECT COUNT(*) FROM Session WHERE lastActivityAt < UTC_TIMESTAMP() - INTERVAL 2 MINUTE"` | `0`: de opruimtaak heeft verlopen sessies verwijderd | FR-019b |
+
+De geautomatiseerde tests dekken dit ook zonder te wachten: ze zetten `lastActivityAt` van een
+sessie 61 minuten terug en verwachten `401 session_expired`, zetten hem 59 minuten terug en
+verwachten dat de sessie nog geldig is en verlengd wordt, en roepen de opruimfunctie direct aan.
 
 ## Isolatiecontrole (SC-003)
 

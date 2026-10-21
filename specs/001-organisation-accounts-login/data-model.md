@@ -67,11 +67,33 @@ toegevoegd (zie [ERD-wijzigingen](#erd-wijzigingen)).
 | `tokenHash` | CHAR(64) | nee | uniek; SHA-256 (hex) van het cookie-token |
 | `administratorId` | INT, FK → `Administrator.id` | ja | precies één van `administratorId` / `organisationId` is gevuld |
 | `organisationId` | INT, FK → `Organisation.id` | ja | index (voor FR-010) |
-| `createdAt` | DATETIME | nee | |
-| `lastUsedAt` | DATETIME | nee | bijgewerkt bij gebruik (hooguit eens per minuut) |
+| `createdAt` | DATETIME | nee | UTC |
+| `lastActivityAt` | DATETIME | nee | UTC; index; bij inloggen gezet en bij elk geauthenticeerd verzoek bijgewerkt naar `UTC_TIMESTAMP()` |
 
-- Geen vervaltijd (FR-019). Uitloggen verwijdert de rij.
+- **Geldig** zolang `lastActivityAt >= UTC_TIMESTAMP() - INTERVAL 60 MINUTE` (glijdende
+  time-out, FR-019; de 60 komt uit `SESSION_IDLE_TIMEOUT_MINUTES`, research R3). Er is geen
+  apart vervalveld: de vervaltijd is altijd `lastActivityAt` + time-out.
+- De bijbehorende cookie is een sessiecookie zonder vervaldatum; sluiten van de browser maakt
+  de sessie voor de gebruiker onbereikbaar, de rij verloopt daarna vanzelf.
 - `CHECK ((administratorId IS NULL) <> (organisationId IS NULL))`.
+
+### Levenscyclus van een sessie
+
+```text
+inloggen ──> actief ──(verzoek binnen 60 min: lastActivityAt := nu)──> actief
+               │
+               ├─ uitloggen ───────────────────────────────> rij verwijderd
+               ├─ codewijziging / organisatie verwijderd ──> rij verwijderd (FR-010)
+               └─ 60 min geen verzoek ──> verlopen ──┬─ volgend verzoek: 401 session_expired,
+                                                    │  rij verwijderd
+                                                    └─ opruimtaak: rij verwijderd
+```
+
+### Opruimen (FR-019b, research R3a)
+
+- Bij het starten van de API en daarna elke 15 minuten:
+  `DELETE FROM Session WHERE lastActivityAt < UTC_TIMESTAMP() - INTERVAL 60 MINUTE`.
+- Opruimen is onderhoud: verlopen rijen worden ook vóór het opruimen al geweigerd.
 
 ## AdminActionLog
 
@@ -100,6 +122,6 @@ Organisation  1 ──── 0..1 OrganisationStyle
 Door te voeren in `docs/Diagrams.simp` (constitution: datamodelwijzigingen ook in het ERD):
 
 1. `Organisation`: veld `deletedAt DATETIME NULL` toevoegen.
-2. Nieuwe entiteit `Session` zoals hierboven.
+2. Nieuwe entiteit `Session` zoals hierboven (met `lastActivityAt` en index daarop).
 3. Nieuwe entiteit `AdminActionLog` zoals hierboven.
 4. `OrganisationStyle.organisationId`: als uniek markeren (relatie 1 : 0..1).

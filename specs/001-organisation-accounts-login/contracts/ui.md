@@ -19,8 +19,20 @@ Gedrag:
 - Een organisatie die `/admin...` opent, krijgt de beheer-inlogpagina te zien, nooit
   beheergegevens (FR-002). De echte afscherming zit in de API; de guard is alleen gemak.
 - Verwijderen vraagt eerst een bevestiging met de naam van de organisatie (FR-011).
-- Na een `401` van de API (bijv. omdat de beheerder de code wijzigde of de organisatie
-  verwijderde, FR-010) gaat de frontend naar de juiste inlogpagina met de melding "Je bent uitgelogd. Log opnieuw in."
+- Na een `401` van de API buiten de inlogverzoeken gaat de frontend naar de juiste inlogpagina
+  (`/admin/login` vanaf een beheerroute, anders `/login`) en onthoudt de route waar de gebruiker
+  was, om na opnieuw inloggen daarheen terug te gaan:
+  - bij `401 session_expired` (60 minuten inactief, of code gewijzigd / organisatie verwijderd,
+    FR-010) toont de inlogpagina bovenaan de melding **"Je sessie is verlopen. Log opnieuw
+    in."** (FR-019a);
+  - bij `401 not_authenticated` (geen cookie, bijv. na het sluiten van de browser) toont de
+    inlogpagina geen extra melding.
+- Niet-opgeslagen invoer in een formulier gaat bij een verlopen sessie verloren; de frontend
+  probeert die niet te bewaren.
+- De frontend doet geen verzoeken op de achtergrond (geen polling, geen automatische
+  verversing), zodat een open maar ongebruikt tabblad de sessie niet in leven houdt. Alleen
+  acties van de gebruiker (navigeren, opslaan, uploaden) tellen als activiteit.
+- Na uitloggen toont de inlogpagina de melding "Je bent uitgelogd."
 - Er is geen registratie- en geen "wachtwoord wijzigen"-scherm voor organisaties (FR-003,
   FR-009).
 - Het codeveld bij aanmaken vraagt een nieuw voorstel op zodra de naam wijzigt, zolang de
