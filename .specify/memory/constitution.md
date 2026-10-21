@@ -89,8 +89,8 @@ documentatie sluit aan bij het team en de stakeholder.
 
 ## Bronnen en domeinregels
 
-- De requirements (`docs/Requirements stakeholder verwerkt_4.docx`) en het ERD
-  (`docs/Futurelabs VR Lifeguard v7.simp`) zijn de bron van waarheid voor
+- De requirements (`docs/Requirements.docx`) en het ERD
+  (`docs/Diagrams.simp`) zijn de bron van waarheid voor
   functionaliteit en datamodel. Specificaties en plannen MUST hiernaar verwijzen en
   afwijkingen expliciet benoemen.
 - Het databaseschema MUST het ERD volgen; wijzigingen aan het datamodel MUST ook in het
