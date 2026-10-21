@@ -1,16 +1,15 @@
 <!--
 Sync Impact Report
-- Versie: (template, onversioneerd) → 1.0.0
-- Principes (nieuw, vervangen de templateplaatshouders):
-  I. Vaste technologiestack
-  II. Docker op één VPS
-  III. Video's via nginx, API alleen voor toegangscontrole
-  IV. Geen geheimen in git
-  V. Zachte verwijdering (deletedAt)
-  VI. Taalconventies
-- Toegevoegde secties: Bronnen en domeinregels, Ontwikkelworkflow, Governance
+- Versie: 1.0.0 → 2.0.0 (MAJOR: principe VI opnieuw gedefinieerd)
+- Gewijzigde principes:
+  VI. Taalconventies: codecommentaar is nu Engels in plaats van Nederlands; alle code
+  (namen, routes, commentaar, foutcodes, logregels) is Engels; Nederlands alleen nog voor
+  teksten die de klant ziet. Documentatie en specificaties blijven Nederlands.
+- Toegevoegde secties: geen
 - Verwijderde secties: geen
 - Templates: niet aangepast (lezen de constitution tijdens runtime)
+- Volgwerk: specs/001-organisation-accounts-login/tasks.md vraagt nog om Nederlands
+  commentaar; aanpassen aan principe VI
 - Uitgestelde TODO's: geen
 -->
 
@@ -79,13 +78,19 @@ versiegeschiedenis van cursussen intact blijft (zie FR-11 en FR-13).
 
 ### VI. Taalconventies
 
-- Namen van tabellen, velden, variabelen, functies, bestanden, API-routes en andere code
-  MUST in het Engels zijn.
-- Documentatie, specificaties en codecommentaar MUST in het Nederlands zijn.
-- Teksten in de gebruikersinterface volgen de specificatie van de betreffende feature.
+- Alles in de code MUST in het Engels zijn, zonder uitzondering: namen van tabellen,
+  velden, variabelen, functies en bestanden, routes (API en frontend), codecommentaar,
+  foutcodes, logregels en configuratiesleutels.
+- Nederlands MUST alleen gebruikt worden voor teksten die de klant ziet: teksten in de
+  gebruikersinterface en meldingen die een gebruiker te zien krijgt (zoals het veld
+  `message` in een foutresponse van de API). Deze teksten volgen de specificatie van de
+  betreffende feature.
+- Documentatie en specificaties (`docs/`, `specs/`, deze constitution) zijn geen code en
+  MUST in het Nederlands zijn.
 
-**Rationale**: Engelse code sluit aan bij frameworks en bibliotheken; Nederlandse
-documentatie sluit aan bij het team en de stakeholder.
+**Rationale**: Engelse code sluit aan bij frameworks en bibliotheken en is voor elke
+ontwikkelaar leesbaar; de klant ziet alleen Nederlands. Nederlandse documentatie sluit aan
+bij het team en de stakeholder.
 
 ## Bronnen en domeinregels
 
@@ -116,4 +121,4 @@ documentatie sluit aan bij het team en de stakeholder.
   principes, MINOR voor nieuwe principes of secties, PATCH voor verduidelijkingen.
 - Elke pull request en review MUST controleren of de wijziging aan deze principes voldoet.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-20 | **Last Amended**: 2026-10-20
+**Version**: 2.0.0 | **Ratified**: 2026-10-20 | **Last Amended**: 2026-10-21

@@ -60,7 +60,7 @@ Er zijn geen open NEEDS CLARIFICATION-punten; alle keuzes staan in [research.md]
 | III. Video's via nginx | Geen video's in deze feature. Logo's volgen hetzelfde patroon: bestand op schijf, nginx serveert, API geeft geen bytes terug | ✅ |
 | IV. Geen geheimen in git | DB-wachtwoorden alleen in `.env` (in `.gitignore`), `.env.example` zonder waarden; beheerderswachtwoord interactief via script; argon2id-hashes | ✅ |
 | V. Zachte verwijdering | Organisaties krijgen `deletedAt` (keuze uit clarify); cursussen/video's bestaan nog niet, FR-014 legt de regel vast voor latere features | ✅ |
-| VI. Taalconventies | Tabellen/velden/code Engels (ERD-namen), documentatie en commentaar Nederlands, UI-teksten Nederlands | ✅ |
+| VI. Taalconventies (v2.0.0) | Alle code Engels: tabellen/velden (ERD-namen), routes (API en frontend; prototyperoutes worden hernoemd), commentaar, foutcodes, logregels. Nederlands alleen voor de klant: UI-teksten en `message` in API-foutresponses. Documentatie en specificaties Nederlands | ✅ |
 | Bronnen en domeinregels | Schema volgt het ERD; nieuwe velden/tabellen staan in [data-model.md § ERD-wijzigingen](data-model.md#erd-wijzigingen) en moeten in het ERD worden doorgevoerd | ⚠️ actie: ERD bijwerken |
 | Ontwikkelworkflow | specify → clarify → plan doorlopen; werk op `Development` | ✅ |
 
