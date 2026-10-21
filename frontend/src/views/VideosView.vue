@@ -43,7 +43,9 @@ function readMeta(file) {
           c.height = 256
           c.getContext('2d').drawImage(el, 0, 0, 512, 256)
           thumb = c.toDataURL('image/jpeg', 0.75)
-        } catch {}
+        } catch {
+          // A thumbnail is optional; some videos cannot be drawn to a canvas.
+        }
         finish({ ...meta, thumb })
       }
     }
@@ -147,7 +149,7 @@ async function remove() {
       <div class="field">
         <span class="label">Gebruikt in</span>
         <ul v-if="usage.length" class="usage">
-          <li v-for="c in usage" :key="c.id"><RouterLink :to="'/cursussen/' + c.id" @click="openId = null">{{ c.name }}</RouterLink></li>
+          <li v-for="c in usage" :key="c.id"><RouterLink :to="'/courses/' + c.id" @click="openId = null">{{ c.name }}</RouterLink></li>
         </ul>
         <span v-else class="muted">Geen cursussen</span>
       </div>

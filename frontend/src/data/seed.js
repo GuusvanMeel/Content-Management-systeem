@@ -1,5 +1,6 @@
 // Demo data. Everything is fictional and only lives in the browser.
 import { autoLayout, contentSnapshot } from '../lib/course'
+import { defaultStyle } from '../config/defaultStyle'
 
 const svg = (s) => 'data:image/svg+xml;utf8,' + encodeURIComponent(s)
 
@@ -15,7 +16,7 @@ const yonder = {
   logoOnBrand: assetLogos['../assets/logo-yonder-white.svg'] ?? null,
 }
 
-export const DEFAULT_BRANDING = { primary: '#2C4A6E', secondary: '#9AA9BC', logo: null }
+export const DEFAULT_BRANDING = { primary: defaultStyle.primaryColour, secondary: defaultStyle.secondaryColour, logo: null }
 
 export function seed() {
   const now = Date.now()

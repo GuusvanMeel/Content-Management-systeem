@@ -1,18 +1,31 @@
-# VR Cursus Studio – prototype
+# VR Cursus Studio – frontend
 
-Prototype van het beheersysteem waarin docenten cursussen voor de Quest 3 maken:
-360°-video’s en vragen, verbonden tot een route. Er is geen backend; alles wordt in de browser bewaard.
+Vue 3-app van het CMS waarin docenten cursussen voor de Quest 3 maken: 360°-video's en
+vragen, verbonden tot een route.
 
-## Starten
+- **Via de API** (`/api`): inloggen als beheerder of organisatie, organisaties beheren, het
+  logboek en de huisstijl van een organisatie.
+- **Nog prototype** (bewaard in `localStorage` van de browser): cursussen, de editor en
+  video's. Die komen in latere features op de backend.
 
-Vereist Node.js 18 of nieuwer.
+## Starten voor ontwikkeling
+
+Vereist Node.js 22. De dev-server stuurt `/api` en `/media` door naar de API op
+`http://localhost:3000`, dus start de backend ook (zie de README in de root).
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open daarna de link die in de terminal verschijnt (meestal http://localhost:5173).
+Zonder HTTPS werkt de sessiecookie alleen als de API draait met `COOKIE_SECURE=false`.
+
+Tests en linten:
+
+```bash
+npm test
+npm run lint
+```
 
 ## Weergaven in de editor
 
@@ -25,7 +38,7 @@ Bovenin de editor wissel je tussen drie weergaven:
 Verbinden: sleep vanaf de onderrand van een video-blok, of vanaf een letter onder een vraag, naar een ander blok
 (het hele blok is dan een doel; de bovenrand licht op). Laat je los op een lege plek, dan kies je een nieuw onderdeel.
 
-## Datamodel (`src/lib/course.js`)
+## Datamodel van het prototype (`src/lib/course.js`)
 
 - **Cursus**: naam, beschrijving, organisatie, startpunt, onderdelen, publicatiestatus.
 - **Video-onderdeel**: één 360°-video, optionele titel, en het volgende onderdeel. Zonder vervolg is het een einde.
@@ -35,6 +48,5 @@ Publiceren kan pas als alles compleet is (`src/lib/validate.js`).
 
 ## Overig
 
-- Organisaties wisselen kan via de naam linksboven (alleen voor het prototype).
-- Huisstijl (kleuren en logo) stel je in onder Organisatie. Daar kun je ook de voorbeeldgegevens herstellen.
-- Ongedaan maken en opnieuw: Ctrl+Z en Ctrl+Y.
+- De huisstijl (kleuren en logo) stelt een organisatie in onder Huisstijl.
+- Ongedaan maken en opnieuw in de editor: Ctrl+Z en Ctrl+Y.

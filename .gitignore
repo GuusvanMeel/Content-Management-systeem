@@ -2,6 +2,10 @@ node_modules/
 .env
 *.log
 dist/
-# video's en databasebestanden
+coverage/
+# videos, uploads and database files
 videos/
 dbdata/
+uploads/
+# local TLS certificates (nginx/dev-cert.sh)
+nginx/certs/

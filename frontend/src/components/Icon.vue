@@ -1,6 +1,6 @@
 <script setup>
 // Small inline icon set (stroke icons, 24px grid).
-const props = defineProps({ name: String, size: { type: [Number, String], default: 16 } })
+defineProps({ name: String, size: { type: [Number, String], default: 16 } })
 const P = {
   plus: 'M12 5v14M5 12h14',
   play: 'M7 4.5v15l12.5-7.5z',

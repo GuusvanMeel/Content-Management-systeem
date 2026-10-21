@@ -1,0 +1,58 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { defaultStyle } from '../config/defaultStyle'
+import { safeRedirect } from '../lib/redirect'
+import { useAuth } from '../stores/auth'
+import { useStyle } from '../stores/style'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useAuth()
+
+const loginCode = ref('')
+const password = ref('')
+const error = ref('')
+const busy = ref(false)
+
+const NOTICES = { expired: 'Je sessie is verlopen. Log opnieuw in.', logout: 'Je bent uitgelogd.' }
+const notice = computed(() => NOTICES[route.query.reason] ?? '')
+
+onMounted(() => useStyle().applyDefault())
+
+async function submit() {
+  error.value = ''
+  busy.value = true
+  try {
+    await auth.loginOrganisation(loginCode.value, password.value)
+    router.replace(safeRedirect(route.query.redirect, { admin: false }) ?? '/')
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="auth-page">
+    <form class="auth-card" @submit.prevent="submit">
+      <img :src="defaultStyle.logoUrl" alt="" class="auth-logo" />
+      <h1>Inloggen</h1>
+      <p v-if="notice" class="notice" role="status">{{ notice }}</p>
+
+      <div class="field">
+        <label for="login-code">Organisatiecode</label>
+        <input id="login-code" v-model="loginCode" class="input" autocomplete="username" autocapitalize="characters" required autofocus />
+      </div>
+      <div class="field">
+        <label for="login-password">Wachtwoord</label>
+        <input id="login-password" v-model="password" type="password" class="input" autocomplete="current-password" required />
+      </div>
+
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <button class="btn btn-primary" :disabled="busy">Inloggen</button>
+      <p class="muted small">Wachtwoord vergeten? Neem contact op met de beheerder.</p>
+    </form>
+  </div>
+</template>

@@ -16,7 +16,7 @@
   --shadow: 0 1px 2px rgba(20, 24, 28, 0.06), 0 2px 8px rgba(20, 24, 28, 0.05);
   --shadow-lg: 0 12px 36px rgba(20, 24, 28, 0.16);
 
-  /* set at runtime from the organisation's huisstijl */
+  /* set at runtime from the organisation's house style */
   --brand: #2c4a6e;
   --brand-ink: #ffffff;
   --brand-2: #9aa9bc;
@@ -265,6 +265,95 @@ textarea {
 @media (max-width: 600px) {
   .page { padding-inline: 16px; }
 }
+
+/* card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  display: grid;
+  gap: 14px;
+}
+.card > p { margin-top: -8px; }
+.narrow { max-width: 640px; }
+
+/* messages */
+.notice { padding: 10px 12px; border-radius: var(--r); background: var(--brand-soft); color: var(--brand-text); font-size: 0.9rem; }
+.error { padding: 10px 12px; border-radius: var(--r); background: var(--err-soft); color: var(--err); font-size: 0.9rem; }
+
+/* app shell with top bar (organisation and admin layouts) */
+.shell { min-height: 100%; display: flex; flex-direction: column; }
+.shell.in-editor { height: 100%; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  flex-shrink: 0;
+}
+.topbar-org { display: flex; align-items: center; gap: 10px; min-width: 0; color: inherit; text-decoration: none; font-weight: 600; }
+.topbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.topbar-logout {
+  margin-left: auto;
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--r-sm);
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.topbar-user + .topbar-logout { margin-left: 0; }
+.topbar-user { margin-left: auto; }
+.topbar-logout:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.nav { display: flex; gap: 4px; height: 100%; }
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.78;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  padding-top: 3px;
+}
+.nav a:hover { opacity: 1; }
+.nav a.on { opacity: 1; border-bottom-color: var(--brand-2); }
+.main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.main > * { flex: 1; min-height: 0; }
+@media (max-width: 640px) {
+  .topbar { gap: 12px; padding: 0 12px; }
+  .topbar-name { max-width: 120px; }
+  .nav a { padding: 0 6px; font-size: 0.9rem; }
+}
+
+/* login pages */
+.auth-page { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+.auth-card {
+  width: min(400px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  display: grid;
+  gap: 16px;
+}
+.auth-logo { height: 40px; width: auto; justify-self: start; }
+
+/* data tables */
+.table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.table th, .table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.table th { font-size: 0.8rem; font-weight: 600; color: var(--muted); background: var(--surface-2); }
+.table tr:last-child td { border-bottom: 0; }
+.table .actions { text-align: right; white-space: nowrap; }
+.table-wrap { overflow-x: auto; }
 
 /* vue flow */
 .vue-flow__edge-path { stroke: var(--line-strong); stroke-width: 1.5; }

@@ -1,0 +1,93 @@
+services:
+  db:
+    image: mariadb:11.8
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+      target: prod
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      UPLOADS_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - uploads:/data/uploads:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+
+  # --- Automated tests: docker compose --profile test run --rm api-test ---
+  db-test:
+    image: mariadb:11.8
+    profiles: [test]
+    environment:
+      MARIADB_DATABASE: ${TEST_DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    tmpfs:
+      - /var/lib/mysql
+    # Exposed on the host so the tests can also run outside Docker (DB_HOST=localhost, DB_PORT=3307).
+    ports:
+      - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  api-test:
+    build:
+      context: ./backend
+      target: test
+    profiles: [test]
+    env_file: .env
+    environment:
+      NODE_ENV: test
+      DB_HOST: db-test
+      DB_PORT: 3306
+      UPLOADS_DIR: /tmp/uploads
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+  # Frontend tests: docker compose run --rm web-build npm test
+  web-build:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: build
+    profiles: [test]
+
+volumes:
+  db-data:
+  uploads:

@@ -54,12 +54,12 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="!course" class="page">
     <h1>Cursus niet gevonden</h1>
-    <RouterLink to="/cursussen">Terug naar cursussen</RouterLink>
+    <RouterLink to="/courses">Terug naar cursussen</RouterLink>
   </div>
 
   <div v-else class="editor">
     <header class="bar">
-      <RouterLink to="/cursussen" class="icon-btn" title="Terug naar cursussen"><Icon name="left" /></RouterLink>
+      <RouterLink to="/courses" class="icon-btn" title="Terug naar cursussen"><Icon name="left" /></RouterLink>
        <span class="status" :class="status.key">{{ status.label }}</span>
       <button class="title" title="Naam en beschrijving" @click="ed.showSettings = true">
         <span class="name">{{ course.name || 'Naamloze cursus' }}</span>

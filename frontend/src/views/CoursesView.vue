@@ -38,7 +38,7 @@ function create() {
   if (!draft.value.name.trim() || !draft.value.description.trim()) return
   const c = app.createCourse({ name: draft.value.name.trim(), description: draft.value.description.trim() })
   showNew.value = false
-  router.push('/cursussen/' + c.id)
+  router.push('/courses/' + c.id)
 }
 async function remove(c) {
   const ok = await confirmDialog({
@@ -68,7 +68,7 @@ async function remove(c) {
 
     <ul v-else class="list">
       <li v-for="r in rows" :key="r.c.id" class="row">
-        <RouterLink :to="'/cursussen/' + r.c.id" class="main">
+        <RouterLink :to="'/courses/' + r.c.id" class="main">
           <span class="name">{{ r.c.name }}</span>
           <span class="meta">
             {{ r.videos }} {{ r.videos === 1 ? 'video' : 'video’s' }} · {{ r.questions }} {{ r.questions === 1 ? 'vraag' : 'vragen' }} · bewerkt {{ timeAgo(r.c.updatedAt) }}

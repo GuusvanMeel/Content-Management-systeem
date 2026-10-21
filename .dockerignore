@@ -1,0 +1,16 @@
+# Build context for frontend/Dockerfile (repository root)
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+.git
+.env
+.env.*
+!.env.example
+uploads
+nginx/certs
+docs
+specs
+.claude
+.specify
+backend

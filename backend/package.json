@@ -1,16 +1,29 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "description": "API for the VR Lifeguard CMS",
+  "main": "src/server.js",
   "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "migrate": "knex migrate:latest",
+    "lint": "eslint ."
+  },
   "dependencies": {
-    "express": "^5.3.0"
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "knex": "^3.3.0",
+    "multer": "^2.4.0",
+    "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
   }
 }

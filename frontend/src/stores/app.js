@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { seed, DEFAULT_BRANDING } from '../data/seed'
+import { seed } from '../data/seed'
 import { uid } from '../lib/util'
 import { contentSnapshot, usedVideoIds, newVideoNode } from '../lib/course'
 import { validateCourse } from '../lib/validate'
@@ -26,7 +26,6 @@ export const useApp = defineStore('app', () => {
   const editorVariant = ref(init.editorVariant ?? 'inspector')
 
   const org = computed(() => orgs.value.find((o) => o.id === currentOrgId.value) ?? orgs.value[0])
-  const branding = computed(() => org.value?.branding ?? DEFAULT_BRANDING)
   const orgCourses = computed(() => courses.value.filter((c) => c.orgId === currentOrgId.value))
   const orgVideos = computed(() => videos.value.filter((v) => v.orgId === currentOrgId.value))
   const videosById = computed(() => Object.fromEntries(videos.value.map((v) => [v.id, v])))
@@ -107,18 +106,10 @@ export const useApp = defineStore('app', () => {
     return true
   }
 
-  // organisation
-  function updateBranding(patch) {
-    org.value.branding = { ...(org.value.branding ?? DEFAULT_BRANDING), ...patch }
-  }
-  function resetBranding() {
-    org.value.branding = null
-  }
-
   return {
     orgs, videos, courses, currentOrgId, editorVariant,
-    org, branding, orgCourses, orgVideos, videosById,
+    org, orgCourses, orgVideos, videosById,
     resetDemo, getCourse, createCourse, deleteCourse, validation, publish, unpublish,
-    videoUsage, addVideo, deleteVideo, updateBranding, resetBranding,
+    videoUsage, addVideo, deleteVideo,
   }
 })
