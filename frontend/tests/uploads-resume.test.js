@@ -20,7 +20,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const mountIndicator = () => mount(UploadIndicator, { global: { plugins: [pinia] } })
+// The indicator is a small round button by default; open it to read the lines.
+async function mountIndicator() {
+  const wrapper = mount(UploadIndicator, { global: { plugins: [pinia] } })
+  await wrapper.find('[data-test="circle"]').trigger('click')
+  return wrapper
+}
 
 describe('resuming in the browser (FR-007, FR-009)', () => {
   it('continues a previous upload of the same file and shows "Hervat"', async () => {
@@ -36,7 +41,7 @@ describe('resuming in the browser (FR-007, FR-009)', () => {
     expect(store.items[0].resumed).toBe(true)
 
     instances[0].options.onProgress(40, 100)
-    const wrapper = mountIndicator()
+    const wrapper = await mountIndicator()
     expect(wrapper.text()).toContain('Hervat')
     expect(wrapper.text()).toContain('40%')
   })
@@ -57,7 +62,7 @@ describe('interruptions', () => {
     await flushPromises()
     expect(instances[0].options.onShouldRetry(tusError(0))).toBe(true)
     expect(store.items[0].state).toBe('retrying')
-    expect(mountIndicator().text()).toContain('Verbinding verbroken, opnieuw proberen…')
+    expect((await mountIndicator()).text()).toContain('Verbinding verbroken, opnieuw proberen…')
   })
 
   it('stops on an expired session, explains how to continue and reports the 401', async () => {
@@ -73,7 +78,7 @@ describe('interruptions', () => {
     await flushPromises()
 
     expect(store.items[0].state).toBe('expired')
-    expect(mountIndicator().text()).toContain(
+    expect((await mountIndicator()).text()).toContain(
       'Upload onderbroken. Log opnieuw in en kies hetzelfde bestand om verder te gaan.',
     )
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ status: 401, code: 'session_expired' }))

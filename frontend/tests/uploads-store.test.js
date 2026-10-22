@@ -1,7 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { videoMessage } from '../src/lib/videoMessages'
 import { useUploads } from '../src/stores/uploads'
-import { fakeFile, instances, resetInstances, successPayload, tusError } from './tusMock'
+import { SETTINGS, fakeFile, instances, resetInstances, successPayload, tusError } from './tusMock'
 
 vi.mock('tus-js-client', async () => (await import('./tusMock')).tusModule())
 vi.mock('../src/api/videos', async () => (await import('./tusMock')).videosModule())
@@ -16,14 +17,14 @@ describe('uploads store: checks before uploading', () => {
   it('refuses a non-MP4 file without uploading', async () => {
     const store = useUploads()
     await store.addFiles([fakeFile('clip.mov')])
-    expect(store.items[0]).toMatchObject({ state: 'rejected', message: "Alleen MP4-video's (H.264) worden ondersteund." })
+    expect(store.items[0]).toMatchObject({ state: 'rejected', message: videoMessage('video_unsupported_format', SETTINGS) })
     expect(instances).toHaveLength(0)
   })
 
   it('refuses a file above the maximum size without uploading', async () => {
     const store = useUploads()
     await store.addFiles([fakeFile('groot.mp4', 10 * 1024 ** 3 + 1)])
-    expect(store.items[0]).toMatchObject({ state: 'rejected', message: 'Een video mag maximaal 10 GB zijn.' })
+    expect(store.items[0]).toMatchObject({ state: 'rejected', message: 'Deze video is groter dan 10 GB. Maak de video korter of sla hem op in een lagere kwaliteit.' })
     expect(instances).toHaveLength(0)
   })
 

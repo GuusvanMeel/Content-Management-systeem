@@ -41,6 +41,8 @@ export function successPayload(video) {
 
 export const SETTINGS = {
   maxFileSizeBytes: 10 * 1024 ** 3,
+  maxWidth: 5760,
+  maxHeight: 2880,
   maxParallelUploads: 1,
   chunkSizeBytes: 32 * 1024 * 1024,
   acceptedExtensions: ['.mp4'],
@@ -56,9 +58,24 @@ export function fakeFile(name, size = 1000) {
 
 export function resetInstances() {
   instances.length = 0
+  storedUploads.length = 0
+  urlStorage.findAllUploads.mockClear()
+  urlStorage.removeUpload.mockClear()
+  FakeUpload.terminate.mockClear()
 }
 
-export const tusModule = () => ({ Upload: FakeUpload })
+// tus-js-client's own record of started uploads (research R14), as an in-memory list.
+export const storedUploads = []
+export const urlStorage = {
+  findAllUploads: vi.fn(async () => [...storedUploads]),
+  removeUpload: vi.fn(async (key) => {
+    const index = storedUploads.findIndex((u) => u.urlStorageKey === key)
+    if (index >= 0) storedUploads.splice(index, 1)
+  }),
+}
+FakeUpload.terminate = vi.fn(async () => {})
+
+export const tusModule = () => ({ Upload: FakeUpload, defaultOptions: { urlStorage } })
 export const videosModule = () => ({
   getUploadSettings: vi.fn(async () => ({ ...SETTINGS })),
   listVideos: vi.fn(async () => []),

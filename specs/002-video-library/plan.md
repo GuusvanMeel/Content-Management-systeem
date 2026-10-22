@@ -6,13 +6,16 @@
 
 ## Summary
 
-Een docent uploadt 360°-video's (MP4/H.264, 2:1, ≤ 4096×2048, ≤ 10 GB) naar de bibliotheek van
+Een docent uploadt 360°-video's (MP4/H.264, 2:1, ≤ 5760×2880 instelbaar, ≤ 10 GB) naar de bibliotheek van
 de eigen organisatie, ziet de bibliotheek met thumbnail, naam, duur, grootte en uploaddatum, en
 verwijdert video's zacht. Uploads zijn hervatbaar, lopen door bij navigeren in het CMS en staan
-in een wachtrij in de browser.
+in een wachtrij in de browser. Na de handmatige test controleert het uploadvenster een bestand
+al vóór de upload; fouten staan daar in gewone taal en blokkeren de knop "Uploaden".
 
 Technisch: het open **tus-protocol** (`@tus/server` + `@tus/file-store` in de Express-API,
-`tus-js-client` in de browser) in delen van 32 MB. Na het laatste deel controleert de API het
+`tus-js-client` in de browser) in delen van 32 MB. Vóór de upload leest **mp4box.js** in de
+browser alleen de kop van het MP4-bestand en past dezelfde regels toe als de server (R13). Na
+het laatste deel controleert de API het
 bestand met **ffprobe** en maakt **ffmpeg** de thumbnail, binnen hetzelfde verzoek; alleen een
 geldige video krijgt een rij in `Video` (exact het ERD, geen status). Alle bestandstoegang loopt
 via één module `videoStorage.js` op een nieuw, niet-publiek volume `videos`. Thumbnails worden
@@ -24,7 +27,8 @@ onvoltooide uploads na 24 uur zonder nieuw deel. Zie [research.md](research.md).
 **Language/Version**: JavaScript (ES modules), Node.js 22 LTS; Vue 3
 
 **Primary Dependencies**: bestaand (Express 5, Knex + mysql2, Vue 3, Vue Router, Pinia) plus
-nieuw: `@tus/server` en `@tus/file-store` 2.x (backend), `tus-js-client` 4.x (frontend),
+nieuw: `@tus/server` en `@tus/file-store` 2.x (backend), `tus-js-client` 4.x en `mp4box` 2.x
+(frontend, BSD-3-Clause),
 `ffmpeg`/`ffprobe` (Alpine-pakket in de API-image). Alles gratis/open source.
 
 **Storage**: MariaDB 11.8, nieuwe tabel `Video` ([data-model.md](data-model.md)); bestanden op
@@ -101,6 +105,7 @@ nginx/
 
 backend/
 ├── Dockerfile                     ~ apk add ffmpeg (base-stage, dus ook test-image)
+├── (.env)                         ~ VIDEO_MAX_WIDTH, VIDEO_MAX_HEIGHT (standaard 5760, 2880)
 ├── scripts/
 │   └── seed-videos.js             + 200 testvideo-rijen voor SC-006 (alleen ontwikkeling)
 ├── package.json                   ~ @tus/server, @tus/file-store
@@ -113,6 +118,7 @@ backend/
 │   ├── jobs/
 │   │   └── uploadCleanup.js       + onvoltooide uploads opruimen (R9)
 │   ├── lib/
+│   │   ├── videoMessages.js       + meldingen in gewone taal (R15)
 │   │   ├── videoStorage.js        + save / getPath / getInternalUrl / remove / freeBytes (R2)
 │   │   ├── videoVerification.js   + ffprobe-regels en thumbnail met ffmpeg (R4)
 │   │   └── sendStoredFile.js      + X-Accel-Redirect in productie, sendFile in ontwikkeling (R8)
@@ -133,13 +139,21 @@ frontend/
 ├── package.json                   ~ tus-js-client
 └── src/
     ├── api/videos.js              + bibliotheek-API en upload-settings
-    ├── stores/uploads.js          + wachtrij, tus-uploads, resultaten, beforeunload (R10)
+    ├── stores/uploads.js          + wachtrij, tus-uploads, resultaten, beforeunload (R10),
+    │                                onderbroken uploads uit tus-urlStorage (R14)
     ├── components/
-    │   ├── UploadIndicator.vue    + indicator op elke pagina
+    │   ├── UploadIndicator.vue    + rond knopje op elke pagina; klapt uit bij nieuws op /videos
+    │   ├── UploadDialog.vue       + uploadvenster: per bestand voorbeeld, naam, controle (R13)
+    │   ├── UploadRejectedDialog.vue + melding midden in het scherm bij weigering door de server
+    │   ├── ResumeNotice.vue       + melding over onderbroken uploads van deze browser (R14)
     │   └── OrganisationLayout.vue ~ indicator tonen; uitloggen met bevestiging bij uploads
     ├── lib/format.js              + grootte (GB/MB, 1024-basis), duur uu:mm:ss, datum
+    ├── lib/videoCheck.js          + controle vóór de upload met mp4box.js (R13)
+    ├── lib/videoMessages.js       + meldingen in gewone taal (R15)
     └── views/VideosView.vue       ~ herschreven op de API (prototype-logica eruit, R11)
-    tests/uploads-store.test.js, videos-view.test.js
+    tests/uploads-store.test.js, videos-view.test.js, video-check.test.js (met de testvideo's
+    uit backend/tests/fixtures/videos), upload-dialog.test.js, upload-indicator.test.js,
+    resume-notice.test.js
 ```
 
 **Structure Decision**: zelfde opzet als feature 001: een nieuwe backendmodule

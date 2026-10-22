@@ -39,7 +39,7 @@ organisaties, sessieregels).
   wordt hervat doordat de docent hetzelfde bestand opnieuw kiest; onvoltooide uploads worden na
   een time-out door een geplande taak opgeruimd.
 - Q: Is er een maximale resolutie voor een 360°-video? → A: Ja, maximaal 4096×2048 pixels; geen
-  minimum.
+  minimum. *Vervangen na de handmatige test: maximaal 5760×2880 en instelbaar, zie hieronder.*
 - Q: Loopt een upload door als de docent naar een andere pagina in het CMS gaat? → A: Ja; de
   upload loopt door op elke CMS-pagina met een zichtbare uploadindicator, en bij het verlaten van
   het CMS of sluiten van het tabblad verschijnt een waarschuwing.
@@ -53,55 +53,87 @@ organisaties, sessieregels).
   in de browser (uploadindicator) afgedwongen en is instelbaar; de server beschermt zich alleen
   via de controle op vrije schijfruimte (FR-004a).
 
+### Session 2026-10-22 (na de handmatige test)
+
+- Q: Wanneer wordt een bestand gecontroleerd? → A: Alle controles (extensie, grootte, codec,
+  resolutie, beeldverhouding) gebeuren al in het uploadvenster, vóórdat de upload begint, door
+  de gegevens van het bestand in de browser te lezen zonder het te versturen. Fouten staan in
+  het venster en de knop "Uploaden" blijft uit tot het bestand geldig is. Kan de browser een
+  bestand niet lezen, dan mag het toch door en beslist de controle op de server na de upload.
+  Die servercontrole blijft altijd als laatste vangnet. De grenzen komen van de server.
+- Q: Wat is de maximale resolutie? → A: 5760×2880 beeldpunten, instelbaar (breedte en hoogte
+  apart); server en browser lezen dezelfde instelling. De controle "twee keer zo breed als hoog"
+  blijft.
+- Q: Hoe worden meldingen geformuleerd? → A: In gewoon Nederlands voor docenten zonder
+  technische kennis, zonder termen als "2:1"; elke melding zegt wat er mis is en wat de docent
+  in plaats daarvan kan doen.
+- Q: Wat ziet de docent van een onderbroken upload? → A: De browser die de upload begon, toont
+  in de bibliotheek: "Je bent eerder begonnen met uploaden van <naam>, X% klaar. Kies het
+  bestand opnieuw om verder te gaan, of verwijder het." Dit gebruikt alleen wat de browser zelf
+  onthoudt; er komt niets bij in de database.
+- Q: Hoe zichtbaar is de uploadindicator? → A: Een klein rondje met het uploadpictogram en een
+  voortgangsring rechtsonder. Op de videopagina staat het er altijd, ook zonder uploads; op
+  andere pagina's alleen zolang er uploads zijn. Het begint ingeklapt en blijft ingeklapt bij het
+  starten en tijdens de voortgang. Alleen op de videopagina klapt het vanzelf uit bij iets wat de
+  docent moet zien (upload klaar, fout of weigering, verbroken verbinding) en na 4 seconden weer
+  in. Klikken opent de balk met uploads; zijn er geen uploads, dan opent klikken het
+  uploadvenster. Bij het starten van een upload valt een bestandspictogram in het rondje (niet
+  bij "verminderde beweging"). Weigeringen na de upload verschijnen daarnaast als melding midden
+  in het scherm. *(Aangepast na de tweede en derde handmatige test.)*
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Docent uploadt een 360°-video (Priority: P1)
 
 Een ingelogde docent kiest in de videobibliotheek "Video toevoegen", selecteert een MP4-bestand
-van de computer en geeft de video een naam (standaard de bestandsnaam zonder extensie). De upload
-toont de voortgang. Direct na de upload controleert het systeem het bestand en maakt het een
-thumbnail; is alles in orde, dan staat de video meteen in de bibliotheek. Is het bestand
-ongeldig, dan ziet de docent meteen waarom en komt de video niet in de bibliotheek.
+van de computer en geeft de video een naam (standaard de bestandsnaam zonder extensie). Nog
+vóór de upload controleert het uploadvenster het bestand; is er iets mis, dan staat dat in het
+venster in gewone taal en kan de upload niet starten. Daarna toont de upload de voortgang.
+Direct na de upload controleert de server het bestand nog een keer en maakt een thumbnail; is
+alles in orde, dan staat de video meteen in de bibliotheek.
 
 **Why this priority**: zonder video's kan geen cursus gemaakt worden; dit is de eerste stap in de
 workflow die de stakeholder als prioriteit heeft (cursus maken → publiceren → Quest).
 
-**Independent Test**: inloggen als organisatie, een geldige 360°-video (MP4, H.264, 2:1) uploaden
-en controleren dat die direct daarna met thumbnail, naam en gegevens in de bibliotheek staat.
+**Independent Test**: inloggen als organisatie, een geldige 360°-video (MP4, H.264, twee keer zo
+breed als hoog) uploaden en controleren dat die direct daarna met thumbnail, naam en gegevens in
+de bibliotheek staat; een ongeldig bestand kiezen en zien dat het venster de fout toont en
+"Uploaden" uit staat.
 
 **Acceptance Scenarios**:
 
-1. **Given** een ingelogde docent, **When** die een geldige 360°-video uploadt, **Then** ziet de
-   docent tijdens de upload de voortgang (percentage en geüploade/totale grootte), daarna kort
-   "Video wordt gecontroleerd…", en daarna staat de video met thumbnail, naam, duur, grootte en
-   uploaddatum in de bibliotheek.
+1. **Given** een ingelogde docent, **When** die een geldige 360°-video kiest, **Then** toont het
+   uploadvenster een voorbeeldbeeld (als de browser dat kan maken), de naam en de grootte, staat
+   "Uploaden" aan, en na "Uploaden" ziet de docent de voortgang, daarna kort "Video wordt
+   gecontroleerd…", en daarna staat de video met thumbnail, naam, duur, grootte en uploaddatum in
+   de bibliotheek.
 2. **Given** een ingelogde docent, **When** die een bestand kiest dat geen `.mp4`-bestand is
-   (bijv. `.mov`, `.avi`, `.pdf`), **Then** wordt het geweigerd vóórdat de upload begint, met de
-   melding "Alleen MP4-video's (H.264) worden ondersteund."
+   (bijv. `.mov`, `.avi`, `.pdf`), **Then** staat in het uploadvenster naast het bestand in rood
+   "Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4)." en blijft "Uploaden" uit; er wordt niets verstuurd.
 3. **Given** een ingelogde docent, **When** die een bestand kiest dat groter is dan 10 GB,
-   **Then** wordt het geweigerd vóórdat de upload begint, met de melding dat een video maximaal
-   10 GB mag zijn.
-4. **Given** een MP4-bestand met H.265-video of een andere codec, **When** de upload klaar is en
-   het bestand wordt gecontroleerd, **Then** ziet de docent meteen de melding dat alleen H.264
-   wordt ondersteund, wordt het bestand verwijderd en komt er niets in de bibliotheek.
-5. **Given** een geldige MP4/H.264-video met een beeldverhouding die niet 2:1 is, **When** het
-   bestand wordt gecontroleerd, **Then** ziet de docent meteen de melding "Dit is geen
-   360°-video: het beeld moet twee keer zo breed zijn als hoog (2:1).", wordt het bestand
-   verwijderd en komt er niets in de bibliotheek.
-6. **Given** een geldige MP4/H.264-video met verhouding 2:1 die groter is dan 4096×2048 pixels
-   (bijv. 5760×2880), **When** het bestand wordt gecontroleerd, **Then** ziet de docent meteen
-   de melding "De resolutie is te hoog: een video mag maximaal 4096×2048 pixels zijn.", wordt het
-   bestand verwijderd en komt er niets in de bibliotheek.
-7. **Given** een lopende upload, **When** de docent naar een andere pagina in het CMS gaat (bijv.
-   "Huisstijl"), **Then** loopt de upload door en blijft een uploadindicator met naam en
-   percentage zichtbaar; als de upload klaar is of geweigerd wordt, ziet de docent dat in die
-   indicator, ook op een andere pagina.
-8. **Given** een lopende upload, **When** de docent het tabblad sluit, de pagina herlaadt of
+   **Then** staat in het venster "Deze video is groter dan 10 GB. Maak de video korter of sla hem op in een lagere kwaliteit." en blijft "Uploaden" uit.
+4. **Given** een MP4-bestand met H.265-video of een andere codec, **When** de docent het kiest,
+   **Then** staat in het venster "Deze video is op een manier opgeslagen die de VR-bril niet kan afspelen. Sla de video in je bewerkingsprogramma opnieuw op als MP4 met de instelling ‘H.264’." en blijft "Uploaden" uit.
+5. **Given** een MP4/H.264-video die niet twee keer zo breed als hoog is, **When** de docent het
+   kiest, **Then** staat in het venster "Dit is geen 360°-video. Kies een video die met een 360°-camera is gemaakt; zo'n beeld is twee keer zo breed als hoog." en blijft "Uploaden" uit.
+6. **Given** een 360°-video groter dan 5760×2880 beeldpunten, **When** de docent het kiest,
+   **Then** staat in het venster "De beeldkwaliteit van deze video is te hoog voor de VR-bril. Sla de video opnieuw op met een lagere resolutie: maximaal 5760 × 2880 beeldpunten." en blijft "Uploaden" uit.
+7. **Given** een bestand dat de browser niet kan lezen, **When** de docent het kiest, **Then**
+   mag het toch geüpload worden en beslist de controle op de server; is het ongeldig, dan ziet
+   de docent de reden in een duidelijke melding midden in het scherm (niet alleen in de hoek),
+   wordt het bestand verwijderd en komt er niets in de bibliotheek.
+8. **Given** een lopende upload, **When** de docent naar een andere pagina in het CMS gaat (bijv.
+   "Huisstijl"), **Then** loopt de upload door en blijft rechtsonder een klein rondje met het
+   uploadpictogram zichtbaar, waarvan de ring de voortgang toont. Bij het starten valt een
+   bestandspictogram in het rondje; het klapt niet uit bij het starten of bij voortgang. Op de
+   videopagina klapt het alleen vanzelf uit als de upload klaar is, bij een fout of weigering of
+   bij een verbroken verbinding, en na 4 seconden weer in.
+9. **Given** een lopende upload, **When** de docent het tabblad sluit, de pagina herlaadt of
    naar een andere website gaat, **Then** waarschuwt de browser eerst dat er een upload loopt;
    gaat de docent toch weg, dan is de upload onderbroken en later te hervatten (User Story 2).
-9. **Given** een bestand met de extensie `.mp4` dat beschadigd is of geen video bevat, **When**
-   het bestand wordt gecontroleerd, **Then** ziet de docent meteen de melding dat het bestand
-   niet gelezen kan worden, en wordt het verwijderd.
+10. **Given** een bestand met de extensie `.mp4` dat beschadigd is of geen video bevat, **When**
+    het in het venster of na de upload wordt gecontroleerd, **Then** ziet de docent
+    "Dit bestand kan niet als video worden geopend. Controleer of de video op je computer goed afspeelt en probeer het opnieuw." en komt er niets in de bibliotheek.
 
 ---
 
@@ -136,6 +168,12 @@ controleren dat de upload niet bij 0% begint.
 5. **Given** een onderbroken upload die niet binnen de time-out wordt hervat, **When** de
    geplande opruimtaak draait, **Then** worden de al ontvangen delen verwijderd en begint een
    nieuwe poging met hetzelfde bestand weer bij 0%.
+6. **Given** een onderbroken upload van "Duikplank" die op 42% stond, **When** de docent in
+   dezelfde browser de videobibliotheek opent, **Then** staat daar "Je bent eerder begonnen met
+   uploaden van Duikplank, 42% klaar. Kies het bestand opnieuw om verder te gaan, of verwijder
+   het." met een knop "Verwijderen"; in een andere browser staat deze melding er niet.
+7. **Given** die melding, **When** de docent "Verwijderen" kiest, **Then** verdwijnt de melding
+   en worden de al ontvangen delen op de server opgeruimd.
 
 ---
 
@@ -207,15 +245,21 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
 - Hervatten werkt alleen in dezelfde browser op dezelfde computer (de browser onthoudt welke
   upload bij welk bestand hoort). Op een andere computer begint een upload van hetzelfde bestand
   opnieuw bij 0%.
-- Meerdere bestanden tegelijk kiezen: de eerste start, de rest wacht in de wachtrij van de
-  uploadindicator en start automatisch daarna (FR-006b). Een geweigerd of geannuleerd bestand
+- Meerdere bestanden tegelijk kiezen: het uploadvenster toont ze allemaal met per bestand de
+  controle; ongeldige bestanden staan in rood en kunnen uit de lijst worden gehaald; "Uploaden"
+  staat pas aan als alle bestanden in de lijst geldig zijn. Daarna start de eerste en wacht de
+  rest in de wachtrij van de uploadindicator (FR-006b). Een geweigerd of geannuleerd bestand
   laat de volgende in de wachtrij starten.
 - Twee tabbladen of twee computers van dezelfde organisatie: elk heeft een eigen wachtrij; de
   limiet geldt per browsertabblad, dus dan kunnen er toch twee uploads tegelijk lopen. Dat is
   aanvaard; de server weigert alleen bij te weinig schijfruimte (FR-004a).
 - Dezelfde video twee keer uploaden: toegestaan; het worden twee aparte video's.
-- Een bestand met de extensie `.mp4` dat eigenlijk een ander formaat is: wordt bij de controle
-  na de upload geweigerd met de melding dat alleen MP4/H.264 wordt ondersteund.
+- Een bestand met de extensie `.mp4` dat eigenlijk een ander formaat is: wordt al in het
+  uploadvenster geweigerd als de browser het kan lezen, anders bij de controle op de server.
+- De browser kan de gegevens van een bestand niet lezen (bijv. een ongebruikelijke opbouw van
+  het bestand): het venster laat de upload toe; de servercontrole na de upload beslist (FR-013b).
+- Een bestand is in het venster goedgekeurd maar wordt toch door de server geweigerd (de browser
+  las iets anders dan ffprobe): de docent ziet de reden in een melding midden in het scherm.
 - De server heeft onvoldoende schijfruimte: een nieuwe upload wordt vóór de start geweigerd als
   er daarna minder dan 20 GB vrij zou blijven (FR-004a). Raakt de schijf toch vol tijdens een
   upload (bijv. door meerdere uploads tegelijk), dan stopt die upload met dezelfde melding en
@@ -237,23 +281,21 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
 - **FR-001**: Een ingelogde organisatie MUST een videobestand kunnen uploaden naar de eigen
   videobibliotheek.
 - **FR-002**: Het systeem MUST alleen MP4-bestanden met H.264-video accepteren. MOV, H.265 en
-  andere formaten of codecs MUST geweigerd worden met de melding "Alleen MP4-video's (H.264)
-  worden ondersteund." De extensie wordt vóór de upload gecontroleerd; container en codec
-  worden direct na de upload gecontroleerd.
-- **FR-003**: Het systeem MUST alleen 360°-video's accepteren: het beeld MUST een
-  beeldverhouding van precies 2:1 hebben (breedte = 2 × hoogte, equirectangulair).
-  360°-metadata in het bestand is niet vereist. Een video met een andere verhouding MUST
-  geweigerd worden met de melding "Dit is geen 360°-video: het beeld moet twee keer zo breed zijn
-  als hoog (2:1)."
+  andere formaten of codecs MUST geweigerd worden. Bij een verkeerd bestandstype is de melding
+  "Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4)."; bij een verkeerde codec "Deze video is op een manier opgeslagen die de VR-bril niet kan afspelen. Sla de video in je bewerkingsprogramma opnieuw op als MP4 met de instelling ‘H.264’."
+- **FR-003**: Het systeem MUST alleen 360°-video's accepteren: het beeld MUST precies twee keer
+  zo breed als hoog zijn (equirectangulair). 360°-metadata in het bestand is niet vereist. Een
+  video met een andere verhouding MUST geweigerd worden met de melding "Dit is geen 360°-video. Kies een video die met een 360°-camera is gemaakt; zo'n beeld is twee keer zo breed als hoog."
 - **FR-002a**: Het geluidsspoor MUST NOT gecontroleerd worden: een video zonder geluid of met
   geluid in welk formaat dan ook wordt op dit punt geaccepteerd. Alleen het beeld (formaat,
   codec, verhouding, resolutie) bepaalt of een video wordt geaccepteerd.
-- **FR-003a**: Het beeld MUST maximaal 4096×2048 pixels zijn (breedte ≤ 4096 en hoogte ≤ 2048);
-  er is geen minimumresolutie. Een grotere video MUST geweigerd worden met de melding "De
-  resolutie is te hoog: een video mag maximaal 4096×2048 pixels zijn."
+- **FR-003a**: Het beeld MUST maximaal 5760×2880 beeldpunten zijn (breedte en hoogte apart
+  instelbaar door het projectteam zonder codewijziging; server en browser gebruiken dezelfde
+  instelling). Er is geen minimumresolutie. Een grotere video MUST geweigerd worden met de
+  melding "De beeldkwaliteit van deze video is te hoog voor de VR-bril. Sla de video opnieuw op met een lagere resolutie: maximaal 5760 × 2880 beeldpunten." (met de ingestelde getallen).
 - **FR-004**: Een video MUST maximaal 10 GB groot zijn; grotere bestanden MUST vóór de start
-  van de upload geweigerd worden met de melding "Een video mag maximaal 10 GB zijn." Er is geen
-  totale opslaglimiet per organisatie.
+  van de upload geweigerd worden met de melding "Deze video is groter dan 10 GB. Maak de video korter of sla hem op in een lagere kwaliteit." (met het ingestelde getal). Er is
+  geen totale opslaglimiet per organisatie.
 - **FR-004a**: Vóór de start van een upload MUST het systeem controleren of er na de upload nog
   minstens 20 GB vrije schijfruimte op de server overblijft (vrije ruimte − bestandsgrootte ≥
   20 GB). Zo niet, dan MUST de upload geweigerd worden met de melding "Er is op dit moment niet
@@ -262,12 +304,24 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
 - **FR-005**: Bij het uploaden MUST de docent een naam kunnen opgeven (1–255 tekens); zonder
   naam MUST de bestandsnaam zonder extensie worden gebruikt, ingekort tot 255 tekens. Blijft er
   dan geen naam over (bijv. een bestand dat `.mp4` heet), dan MUST de naam "Video" zijn.
-- **FR-006**: Tijdens het uploaden MUST de docent de voortgang zien (percentage en
+- **FR-006**: Tijdens het uploaden MUST de docent de voortgang kunnen zien (percentage en
   geüploade/totale grootte) en de upload kunnen annuleren.
 - **FR-006a**: Een upload MUST doorlopen als de docent binnen het CMS naar een andere pagina
-  gaat. Zolang er een upload loopt, MUST op elke CMS-pagina een uploadindicator zichtbaar zijn
-  met per upload de naam, het percentage en een knop om te annuleren; het resultaat (in de
-  bibliotheek gezet, of de reden van weigering) MUST daar ook verschijnen.
+  gaat. Rechtsonder MUST een klein rondje met het uploadpictogram staan, met de totale voortgang
+  als ring: op de videopagina altijd, ook als er geen uploads zijn; op andere CMS-pagina's alleen
+  zolang er uploads in de lijst staan. Het rondje MUST ingeklapt beginnen en ingeklapt blijven als
+  een upload start en terwijl hij vordert. Alleen op de videopagina MUST de indicator vanzelf
+  uitklappen, en alleen bij gebeurtenissen die de docent moet zien: een upload is klaar, een fout
+  of weigering (ook een verlopen sessie), of een verbroken verbinding; na 4 seconden MUST hij
+  vanzelf weer inklappen. Klikken op het rondje MUST, als er uploads in de lijst staan, de
+  uploadindicator openen of sluiten (per upload de naam, het percentage, een knop om te annuleren
+  en het resultaat); een door klikken geopende indicator klapt niet vanzelf in. Staan er geen
+  uploads in de lijst, dan MUST klikken het uploadvenster openen, net als de knop "Video
+  toevoegen".
+- **FR-006d**: Als een upload start, MUST een kort animatietje laten zien dat er een
+  bestandspictogram in het rondje valt, zodat de docent ziet dat de upload begonnen is en waar.
+  Heeft de docent in het systeem "verminderde beweging" ingesteld, dan MUST de animatie
+  achterwege blijven.
 - **FR-006b**: In één browsertabblad MUST maximaal één upload tegelijk lopen (standaard 1,
   instelbaar door het projectteam zonder codewijziging). Extra gekozen bestanden MUST in de
   uploadindicator in een wachtrij komen ("Wacht…") en automatisch starten zodra de vorige klaar,
@@ -285,22 +339,35 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
   gaan zodra de verbinding terug is.
 - **FR-009**: Na een langere onderbreking (bijv. browser gesloten) MUST de upload hervat worden
   doordat de docent in dezelfde browser hetzelfde bestand opnieuw kiest; het systeem herkent
-  dan zelf dat het om een onderbroken upload gaat. Een onderbroken upload wordt niet in de
-  bibliotheek getoond.
+  dan zelf dat het om een onderbroken upload gaat. Een onderbroken upload wordt niet als video in
+  de bibliotheek getoond.
+- **FR-009a**: Heeft deze browser een onderbroken upload, dan MUST de videobibliotheek daarover
+  een melding tonen: "Je bent eerder begonnen met uploaden van <naam>, X% klaar. Kies het bestand opnieuw om verder te gaan, of verwijder het.", met een knop "Verwijderen" die de upload annuleert (FR-010).
+  Het percentage komt van de server. De melding gebruikt alleen wat de browser zelf over de
+  upload onthoudt: alleen de browser die de upload begon, toont haar, en er komt niets bij in de
+  database. Een upload die op de server niet meer bestaat, wordt stil vergeten.
 - **FR-010**: Bij annuleren MUST het systeem de al ontvangen delen opruimen.
 - **FR-011**: Een geplande taak MUST onvoltooide uploads die 24 uur geen nieuw deel hebben
   ontvangen, verwijderen.
 - **FR-012**: Zolang een upload loopt, MUST de sessie van de docent niet verlopen door
   inactiviteit (elk ontvangen deel telt als activiteit).
 
-**Controleren na de upload**
+**Controleren vóór en na de upload**
 
-- **FR-013**: Direct nadat een upload volledig is ontvangen, MUST het systeem het bestand
-  controleren (MP4, H.264, beeldverhouding 2:1, maximaal 4096×2048, leesbaar), de duur en grootte bepalen en een
-  thumbnail maken. Pas als dat allemaal is gelukt, MUST de video in de bibliotheek komen.
-- **FR-014**: Is het bestand ongeldig, dan MUST het systeem het bestand meteen verwijderen,
-  MUST er niets over de video worden opgeslagen, en MUST de docent direct de reden zien (geen
-  360°-video, resolutie te hoog, niet-ondersteund formaat of codec, bestand onleesbaar).
+- **FR-013**: Vóór de upload MUST het uploadvenster het bestand controleren door de gegevens van
+  het bestand in de browser te lezen, zonder het te versturen: extensie, grootte, container,
+  codec, resolutie en verhouding, met de grenzen van de server. Bij een fout MUST de melding in
+  rood naast het bestand staan en MUST "Uploaden" uitgeschakeld blijven tot alle gekozen
+  bestanden geldig zijn.
+- **FR-013a**: Direct nadat een upload volledig is ontvangen, MUST de server het bestand
+  opnieuw controleren (dezelfde regels, plus leesbaarheid), de duur en grootte bepalen en een
+  thumbnail maken. Pas als dat allemaal is gelukt, MUST de video in de bibliotheek komen. Deze
+  controle blijft altijd het laatste vangnet.
+- **FR-013b**: Kan de browser de gegevens van een bestand niet lezen, dan MUST het venster de
+  upload toch toestaan; de servercontrole (FR-013a) beslist dan.
+- **FR-014**: Weigert de server een bestand na de upload, dan MUST het systeem het bestand meteen
+  verwijderen, MUST er niets over de video worden opgeslagen, en MUST de docent de reden direct
+  zien in een duidelijke melding midden in het scherm (niet alleen in de uploadindicator).
 - **FR-015**: De controle en het maken van de thumbnail MUST voor een video van 10 GB binnen 60
   seconden na het afronden van de upload klaar zijn.
 - **FR-016**: Video's hebben geen status: elke video in de bibliotheek is volledig geüpload,
@@ -356,10 +423,11 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
   daarna niet meer dan ongeveer de resterende 2 GB (hooguit één deel extra).
 - **SC-003**: Een geldige video van 10 GB staat binnen 60 seconden na het afronden van de upload
   in de bibliotheek; een ongeldig bestand geeft binnen die tijd een melding.
-- **SC-004**: In een testset van niet-360°-video's, video's groter dan 4096×2048,
+- **SC-004**: In een testset van niet-360°-video's, video's groter dan 5760×2880,
   H.265-video's, MOV-bestanden en andere bestanden wordt 100% geweigerd met een begrijpelijke
-  melding; in een testset van geldige MP4/H.264-video's met verhouding 2:1 en maximaal
-  4096×2048 wordt 100% geaccepteerd.
+  melding; in een testset van geldige MP4/H.264-video's (twee keer zo breed als hoog, maximaal
+  5760×2880) wordt 100% geaccepteerd. Elk ongeldig bestand dat de browser kan lezen, wordt al in
+  het uploadvenster geweigerd, zonder dat er iets wordt verstuurd.
 - **SC-005**: In een test met twee organisaties slaagt 0% van de pogingen om video's, thumbnails
   of uploads van de andere organisatie te zien, te hervatten of te verwijderen.
 - **SC-006**: De bibliotheek van een organisatie met 200 video's is binnen 2 seconden zichtbaar.

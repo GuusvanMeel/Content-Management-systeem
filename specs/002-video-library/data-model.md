@@ -87,4 +87,12 @@ Volume `videos`, gekoppeld op `/data/videos` (research R2):
 | `VIDEO_MAX_SIZE_GB` | 10 | maximale grootte per video (FR-004) |
 | `VIDEO_MIN_FREE_SPACE_GB` | 20 | vrije ruimte die moet overblijven (FR-004a) |
 | `VIDEO_MAX_PARALLEL_UPLOADS` | 1 | uploads tegelijk per tabblad, alleen in de browser (FR-006b) |
+| `VIDEO_MAX_WIDTH` | 5760 | maximale breedte in beeldpunten; server en browser (FR-003a) |
+| `VIDEO_MAX_HEIGHT` | 2880 | maximale hoogte in beeldpunten; server en browser (FR-003a) |
 | `UPLOAD_EXPIRY_HOURS` | 24 | opruimen van onvoltooide uploads (FR-011) |
+
+## Onderbroken uploads in de browser (geen tabel)
+
+De melding over onderbroken uploads (FR-009a, research R14) gebruikt alleen wat `tus-js-client`
+zelf in `localStorage` van deze browser bewaart (upload-URL, grootte, `filename`, `name`) plus
+een `HEAD` op de server voor het percentage. Er komt niets bij in de database.

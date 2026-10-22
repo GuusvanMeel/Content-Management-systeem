@@ -94,7 +94,11 @@ nginx. Alles hieronder is gratis en open source; er worden geen betaalde dienste
 - **Alternatives considered**: autorisatie in tus-hooks (`onIncomingRequest`; afhankelijk van
   de hook-API van de tus-versie en minder goed te testen).
 
-## R4. Controle na de upload en thumbnail (FR-002, FR-003, FR-003a, FR-013 – FR-015)
+## R4. Controle na de upload en thumbnail (FR-002, FR-003, FR-003a, FR-013a – FR-015)
+
+Na de handmatige test is dit het **laatste vangnet**: de meeste fouten vangt het uploadvenster
+al vóór de upload (R13). De server blijft precies dezelfde regels controleren, omdat een
+browser een bestand soms niet kan lezen en omdat de browsercontrole te omzeilen is.
 
 - **Decision**: `ffprobe` en `ffmpeg` (het `ffmpeg`-pakket van Alpine, gratis) in de API-image.
   In de tus-hook `onUploadFinish` (draait direct na het laatste deel, nog binnen dat
@@ -108,7 +112,8 @@ nginx. Alles hieronder is gratis en open source; er worden geen betaalde dienste
      `video_unsupported_codec`. Geen videostream → `video_unreadable`.
   4. **360°**: `width === 2 * height` en de pixelverhouding (`sample_aspect_ratio`) is
      afwezig, `0:1` of `1:1` → anders `video_not_360`.
-  5. **Resolutie**: `width ≤ 4096` en `height ≤ 2048` → anders `video_resolution_too_high`.
+  5. **Resolutie**: `width ≤ VIDEO_MAX_WIDTH` en `height ≤ VIDEO_MAX_HEIGHT` (standaard 5760 en
+     2880, uit `.env`) → anders `video_resolution_too_high`.
   6. Het geluid wordt niet bekeken (FR-002a).
   7. **Duur**: `format.duration`, afgerond op hele seconden.
   8. **Thumbnail**: `ffmpeg -ss <10% van de duur, minstens 1 s> -i <bestand> -frames:v 1
@@ -117,7 +122,8 @@ nginx. Alles hieronder is gratis en open source; er worden geen betaalde dienste
   Bij succes: video en thumbnail via `videoStorage.save` op hun plek, één `INSERT` in `Video`,
   tus-info verwijderd; het antwoord op de laatste `PATCH` bevat de nieuwe video (JSON). Bij een
   fout: bestand en tus-info verwijderd, niets in de database, en de hook geeft een
-  `422` met het foutformaat van de API en een Nederlandse melding terug (FR-014). Pas na de
+  `422` met het foutformaat van de API en een Nederlandse melding terug (FR-014). De meldingen
+  staan in gewone taal, zonder technische termen (R15). Pas na de
   `INSERT` staat de video in de bibliotheek (FR-013, FR-016).
 - **Rationale**: ffprobe leest alleen de kop van het bestand (de `moov`-box); ook bij 10 GB is
   dat binnen seconden. Een thumbnail met `-ss` vóór `-i` zoekt direct naar het juiste punt.
@@ -125,8 +131,8 @@ nginx. Alles hieronder is gratis en open source; er worden geen betaalde dienste
   het resultaat meteen; sluit de docent de pagina, dan loopt het verzoek op de server door en
   komt een geldige video gewoon in de bibliotheek (spec, Edge Cases).
 - **Alternatives considered**:
-  - controle in de browser met een `<video>`-element (onbetrouwbaar, kent geen codecnamen,
-    makkelijk te omzeilen; het prototype deed dit);
+  - alleen een controle in de browser (te omzeilen en niet elk bestand is in de browser
+    leesbaar; daarom blijft deze servercontrole, zie R13);
   - een aparte "afronden"-aanroep van de client na de upload (dan blijft een volledig
     geüpload bestand liggen als de browser precies daartussen sluit);
   - een wachtrij met achtergrondverwerking (vraagt een status in de database, die de spec
@@ -219,10 +225,20 @@ geen `client_max_body_size 10g` of urenlange time-out te komen. Wat verandert:
     uitloggen vraagt eerst bevestiging en breekt lopende uploads af (`abort` zonder
     `DELETE`, dus later hervatbaar).
   - De instellingen komen van de API: `GET /api/organisation/videos/upload-settings` geeft
-    `maxFileSizeBytes`, `maxParallelUploads`, `chunkSizeBytes` en `acceptedExtensions`. De
-    waarden komen uit `.env` (`VIDEO_MAX_SIZE_GB`, `VIDEO_MAX_PARALLEL_UPLOADS`). Zo zijn ze
-    instelbaar zonder nieuwe frontend-build, en bestaat de 10 GB-grens maar op één plek. De
-    server dwingt `maxParallelUploads` niet af (spec).
+    `maxFileSizeBytes`, `maxWidth`, `maxHeight`, `maxParallelUploads`, `chunkSizeBytes` en
+    `acceptedExtensions`. De waarden komen uit `.env` (`VIDEO_MAX_SIZE_GB`, `VIDEO_MAX_WIDTH`,
+    `VIDEO_MAX_HEIGHT`, `VIDEO_MAX_PARALLEL_UPLOADS`). Zo zijn ze instelbaar zonder nieuwe
+    frontend-build, en bestaan de grenzen maar op één plek: server en browser lezen dezelfde
+    waarden. De server dwingt `maxParallelUploads` niet af (spec).
+  - **Uploadindicator** (na de handmatige tests, FR-006a, FR-006d): een klein rond knopje met
+    het uploadpictogram rechtsonder en de totale voortgang als ring; op `/videos` altijd
+    zichtbaar, elders alleen met uploads. Het blijft ingeklapt bij starten en voortgang. Op de
+    videopagina klapt het vanzelf uit bij klaar, een fout of weigering, een verlopen sessie of een
+    verbroken verbinding (de store telt die met `noticeCount`) en na 4 s weer in. Klikken opent
+    de lijst, of, zonder uploads, de bestandskiezer van de videopagina (die registreert zich bij de
+    store). Bij de start van een upload (`startedCount`) valt een bestandspictogram in het knopje;
+    bij `prefers-reduced-motion: reduce` niet. Weigeringen door de server verschijnen daarnaast als melding midden
+    in het scherm (`UploadRejectedDialog.vue`, in `OrganisationLayout.vue`, dus op elke pagina).
 - **Rationale**: één bron voor de limieten; wijzigen is een `.env`-aanpassing plus herstart van
   de API.
 - **Alternatives considered**: Vite-buildvariabele (`VITE_…`): vraagt een nieuwe frontend-build
@@ -253,10 +269,10 @@ geen `client_max_body_size 10g` of urenlange time-out te komen. Wat verandert:
   | `valid-512x256.mp4` | H.264, 2:1, met AAC-geluid | geaccepteerd |
   | `valid-silent-1024x512.mp4` | H.264, 2:1, zonder geluid | geaccepteerd |
   | `valid-opus-audio-512x256.mp4` | H.264, 2:1, Opus-geluid | geaccepteerd (FR-002a) |
-  | `valid-4096x2048.mp4` | H.264, precies de maximale resolutie | geaccepteerd |
+  | `valid-max-5760x2880.mp4` | H.264, precies de maximale resolutie | geaccepteerd |
   | `not-360-640x360.mp4` | H.264, 16:9 | `video_not_360` |
   | `square-1024x1024.mp4` | H.264, 1:1 (3D boven-onder) | `video_not_360` |
-  | `too-large-4352x2176.mp4` | H.264, 2:1, boven 4096×2048 | `video_resolution_too_high` |
+  | `too-large-6144x3072.mp4` | H.264, 2:1, boven 5760×2880 | `video_resolution_too_high` |
   | `h265-512x256.mp4` | H.265 in MP4 | `video_unsupported_codec` |
   | `quicktime-512x256.mp4` | H.264 in MOV-container met `.mp4`-naam | `video_unsupported_format` |
   | `audio-only.mp4` | alleen geluid | `video_unreadable` |
@@ -270,3 +286,75 @@ geen `client_max_body_size 10g` of urenlange time-out te komen. Wat verandert:
 - De backendtests draaien zoals in 001 tegen `db-test` (`docker compose --profile test run
   --rm api-test`); de test-image krijgt ook `ffmpeg`. Lokaal buiten Docker moet `ffmpeg` op het
   `PATH` staan.
+- De frontend-tests van de browsercontrole (R13) gebruiken dezelfde testvideo's: Vitest leest ze
+  van schijf en geeft ze als `File` aan de controle, zodat browser en server op precies dezelfde
+  bestanden worden getest.
+
+## R13. Controle in de browser vóór de upload (FR-013, FR-013b)
+
+- **Decision**: **mp4box.js** (`mp4box` op npm, BSD-3-Clause, gratis) leest in het uploadvenster
+  de gegevens van een MP4, zonder iets te versturen. `frontend/src/lib/videoCheck.js`:
+  1. Extensie `.mp4` en grootte ≤ `maxFileSizeBytes` (direct, zonder te lezen).
+  2. De bovenste "boxen" van het bestand worden doorlopen met `File.slice` (8 of 16 bytes per
+     kop); alleen `ftyp` (merk) en `moov` (beschrijving van de sporen, meestal een paar MB, ook
+     als hij aan het eind van een bestand van 10 GB staat) worden echt ingelezen en aan
+     mp4box.js gegeven. De videodata (`mdat`) wordt overgeslagen, dus ook een bestand van 10 GB
+     is binnen een seconde gecontroleerd.
+  3. Regels, gelijk aan de server (R4): merk niet `qt` → anders `video_unsupported_format`; er is
+     een videospoor → anders `video_unreadable`; codec `avc1`/`avc3` (H.264) → anders
+     `video_unsupported_codec`; breedte = 2 × hoogte → anders `video_not_360`; breedte ≤
+     `maxWidth` en hoogte ≤ `maxHeight` → anders `video_resolution_too_high`.
+  4. **Niet te lezen** (geen `ftyp`/`moov` gevonden, mp4box.js geeft een fout, of het lezen
+     duurt langer dan 10 s): de controle geeft `unknown` en het venster laat de upload toe
+     (FR-013b); de servercontrole beslist.
+  - Het voorbeeldbeeld in het venster maakt de browser zelf met een `<video>`-element en een
+    canvas (beste poging; lukt het niet, dan een grijs vlak). Dat is alleen voor de docent, niet
+    voor de controle.
+- **Rationale**: mp4box.js is gemaakt om MP4-structuur in de browser te lezen, geeft precies de
+  codecnaam, breedte en hoogte die nodig zijn, en is klein. Door alleen `ftyp` en `moov` te lezen
+  blijft het snel voor bestanden van 10 GB. Dezelfde regels in browser en server betekenen dat
+  het venster en de server hetzelfde zeggen.
+- **Alternatives considered**:
+  - `<video>`-element met `videoWidth`/`videoHeight` (geeft geen codecnaam; Chrome speelt soms
+    H.265 af, dus H.265 zou erdoor komen; het prototype deed dit);
+  - mediainfo.js (BSD-2-Clause, leest alles, maar een WebAssembly-module van enkele MB en
+    trager op te starten);
+  - ffmpeg.wasm (tientallen MB, veel te zwaar om alleen gegevens te lezen);
+  - een eigen MP4-parser (meer code en randgevallen dan mp4box.js).
+
+## R14. Melding over onderbroken uploads (FR-009a)
+
+- **Decision**: `tus-js-client` bewaart per gestarte upload in `localStorage` de upload-URL,
+  de grootte en de metadata (`filename`, `name`). Bij het openen van de videobibliotheek leest
+  de upload-store die lijst via `tus.defaultOptions.urlStorage.findAllUploads()`, slaat uploads
+  over die in dit tabblad lopen, en vraagt per upload met één `HEAD` de stand op de server op
+  (`Upload-Offset` / `Upload-Length` → percentage). Geeft de server `404` (opgeruimd,
+  afgekeurd, of van een eerdere sessie verdwenen), dan wordt de opgeslagen info stil verwijderd.
+  "Verwijderen" stuurt een tus-`DELETE` (`tus.Upload.terminate`) en verwijdert de opgeslagen info.
+  Kiest de docent hetzelfde bestand, dan hervat de bestaande logica (R1) en verdwijnt de melding.
+- **Rationale**: geen database-wijziging nodig (spec), en alleen de browser die de upload begon
+  kent hem. De `HEAD`-aanroepen gebeuren alleen bij het openen van de pagina (een actie van de
+  docent), dus er is geen polling.
+- **Alternatives considered**: onvoltooide uploads per organisatie uit de server opvragen (dan
+  ziet elke browser ze en is een lijst op de server nodig; de spec vraagt alleen de eigen
+  browser).
+
+## R15. Meldingen in gewone taal (alle weigeringen)
+
+- **Decision**: elke weigering zegt wat er mis is en wat de docent kan doen, zonder termen als
+  "2:1", "codec" of "pixels". Getallen komen uit de instellingen. Teksten (API `message` én
+  frontend):
+
+  | `code` | Melding |
+  | --- | --- |
+  | `video_unsupported_format` | Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4). |
+  | `video_unsupported_codec` | Deze video is op een manier opgeslagen die de VR-bril niet kan afspelen. Sla de video in je bewerkingsprogramma opnieuw op als MP4 met de instelling ‘H.264’. |
+  | `video_not_360` | Dit is geen 360°-video. Kies een video die met een 360°-camera is gemaakt; zo'n beeld is twee keer zo breed als hoog. |
+  | `video_resolution_too_high` | De beeldkwaliteit van deze video is te hoog voor de VR-bril. Sla de video opnieuw op met een lagere resolutie: maximaal <breedte> × <hoogte> beeldpunten. |
+  | `video_unreadable` | Dit bestand kan niet als video worden geopend. Controleer of de video op je computer goed afspeelt en probeer het opnieuw. |
+  | `video_too_large` | Deze video is groter dan <max> GB. Maak de video korter of sla hem op in een lagere kwaliteit. |
+  | `insufficient_storage` | Er is op dit moment niet genoeg opslagruimte. Neem contact op met de beheerder. |
+
+  Backend: `backend/src/lib/videoMessages.js`; frontend: `frontend/src/lib/videoMessages.js`.
+  Beide hebben dezelfde teksten; een test aan elke kant vergelijkt ze met deze tabel.
+- **Rationale**: docenten zonder technische kennis moeten zelf weten wat ze moeten doen (NFR-03).

@@ -25,26 +25,65 @@ zie feature 001).
 - De bibliotheek wordt opnieuw geladen bij openen van de pagina en zodra een upload in de
   bibliotheek is gezet; er is geen polling (contracts/ui.md van 001).
 
-## Naam opgeven
+## Melding over onderbroken uploads (`ResumeNotice.vue`, bovenaan `/videos`, FR-009a)
 
-- Na het kiezen van één bestand: een kort venster "Video toevoegen" met het veld **Naam**
-  (voorgevuld met de bestandsnaam zonder extensie, max. 255 tekens) en de knop "Uploaden".
-- Bij meerdere bestanden tegelijk: geen venster; elke video krijgt de bestandsnaam zonder
-  extensie als naam.
+Per onderbroken upload van deze browser (research R14) één regel:
 
-## Controles vóór de upload (in de browser)
+"Je bent eerder begonnen met uploaden van <naam>, 42% klaar. Kies het bestand opnieuw om verder
+te gaan, of verwijder het." met de knop **"Verwijderen"** (annuleert de upload op de server).
 
-Bij het kiezen, per bestand, zonder iets te versturen:
+- Alleen in de browser die de upload begon; uploads die in dit tabblad lopen staan er niet bij.
+- Kiest de docent hetzelfde bestand, dan wordt de upload hervat en verdwijnt de regel.
+- Bestaat de upload op de server niet meer, dan wordt hij stil vergeten.
 
-| Situatie | Melding in de uploadindicator |
+## Uploadvenster (`UploadDialog.vue`, FR-005, FR-013)
+
+Opent na het kiezen van één of meer bestanden. Per bestand een regel met:
+
+- een voorbeeldbeeld (door de browser gemaakt; lukt dat niet, dan een grijs vlak),
+- het veld **Naam** (voorgevuld met de bestandsnaam zonder extensie, max. 255 tekens),
+- bestandsnaam en grootte,
+- de uitkomst van de controle: tijdens het lezen "Bestand wordt gecontroleerd…"; bij een fout de
+  melding **in rood** naast het bestand en een knop "Uit de lijst halen".
+
+De knop **"Uploaden"** is uitgeschakeld zolang een bestand nog wordt gecontroleerd of ongeldig
+is. Kan de browser een bestand niet lezen, dan staat er niets in rood en mag het door
+(FR-013b). "Annuleren" sluit het venster zonder iets te versturen.
+
+Meldingen in het venster (getallen uit `upload-settings`):
+
+| Situatie | Melding |
 | --- | --- |
-| Extensie is niet `.mp4` | "Alleen MP4-video's (H.264) worden ondersteund." |
-| Groter dan `maxFileSizeBytes` | "Een video mag maximaal 10 GB zijn." |
+| Extensie is niet `.mp4`, of het bestand is een MOV | Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4). |
+| Groter dan `maxFileSizeBytes` | Deze video is groter dan 10 GB. Maak de video korter of sla hem op in een lagere kwaliteit. |
+| Geen H.264 (bijv. H.265) | Deze video is op een manier opgeslagen die de VR-bril niet kan afspelen. Sla de video in je bewerkingsprogramma opnieuw op als MP4 met de instelling ‘H.264’. |
+| Niet twee keer zo breed als hoog | Dit is geen 360°-video. Kies een video die met een 360°-camera is gemaakt; zo'n beeld is twee keer zo breed als hoog. |
+| Breder dan `maxWidth` of hoger dan `maxHeight` | De beeldkwaliteit van deze video is te hoog voor de VR-bril. Sla de video opnieuw op met een lagere resolutie: maximaal 5760 × 2880 beeldpunten. |
+| Bestand bevat geen beeld | Dit bestand kan niet als video worden geopend. Controleer of de video op je computer goed afspeelt en probeer het opnieuw. |
 
-## Uploadindicator (`UploadIndicator.vue`, op elke CMS-pagina)
+## Weigering door de server (`UploadRejectedDialog.vue`, FR-014)
 
-Zichtbaar zolang er uploads lopen, wachten, of een resultaat hebben dat nog niet is gesloten
-(FR-006a). Per bestand één regel:
+Weigert de server een bestand na de upload, dan verschijnt midden in het scherm (op elke pagina)
+een venster "Video niet toegevoegd" met de naam van het bestand, de `message` uit de API en de
+knop "OK". De regel in de uploadindicator blijft daarnaast bestaan tot "Sluiten".
+
+## Uploadindicator (`UploadIndicator.vue`, FR-006a)
+
+- Rechtsonder een klein rond knopje met het uploadpictogram en de totale voortgang als ring.
+  Op `/videos` altijd zichtbaar, ook zonder uploads; op andere pagina's alleen zolang er uploads
+  in de lijst staan.
+- Het begint ingeklapt en blijft ingeklapt als een upload start en terwijl hij vordert; de ring
+  toont de voortgang.
+- Alleen op `/videos` klapt het vanzelf uit, en alleen bij: klaar ("Toegevoegd aan de
+  bibliotheek"), geweigerd of mislukt, sessie verlopen, of verbinding weg. Na 4 seconden klapt
+  het vanzelf weer in. Starten, hervatten en voortgang klappen het niet uit.
+- Klikken: staan er uploads in de lijst, dan klapt het uit tot de lijst hieronder (nogmaals
+  klikken klapt het in; een door klikken geopende lijst klapt niet vanzelf in). Is de lijst leeg,
+  dan opent klikken de bestandskiezer en daarna het uploadvenster, net als "Video toevoegen".
+- Start een upload, dan valt er een bestandspictogram in het knopje (± 0,8 s). Bij
+  `prefers-reduced-motion: reduce` geen animatie.
+
+Per bestand één regel:
 
 | Toestand | Tekst | Acties |
 | --- | --- | --- |
@@ -63,7 +102,6 @@ Zichtbaar zolang er uploads lopen, wachten, of een resultaat hebben dat nog niet
 - Hervatten: kiest de docent een bestand waarvoor in deze browser een onvoltooide upload
   bestaat, dan gaat die verder vanaf het bereikte punt en toont de regel "Hervat" (FR-009).
 - "Annuleren" vraagt geen bevestiging en ruimt de ontvangen delen op (FR-010).
-- De indicator is inklapbaar tot één regel "Uploaden: 1 bezig, 2 wachtend".
 
 ## Weggaan tijdens een upload (FR-006c)
 

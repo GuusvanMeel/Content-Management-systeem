@@ -8,6 +8,7 @@ import { useStyle } from '../stores/style'
 import { useUploads } from '../stores/uploads'
 import OrgLogo from './OrgLogo.vue'
 import UploadIndicator from './UploadIndicator.vue'
+import UploadRejectedDialog from './UploadRejectedDialog.vue'
 
 const auth = useAuth()
 const style = useStyle()
@@ -56,5 +57,6 @@ async function logout() {
       <RouterView :key="auth.organisation?.id" />
     </main>
     <UploadIndicator />
+    <UploadRejectedDialog />
   </div>
 </template>

@@ -81,8 +81,10 @@ docker run --rm -v "$PWD/backend/tests/fixtures/videos:/work" -w /work alpine:3 
 
 ## Videobibliotheek
 
-Video's (MP4, H.264, beeldverhouding 2:1, maximaal 4096×2048) worden hervatbaar geüpload met
-het tus-protocol en direct na de upload gecontroleerd. Ze staan op het eigen Docker-volume
+Video's (MP4, H.264, twee keer zo breed als hoog, standaard maximaal 5760×2880) worden al in
+het uploadvenster gecontroleerd, vóórdat er iets wordt verstuurd: de browser leest met
+[mp4box.js](https://github.com/gpac/mp4box.js) alleen de kop van het bestand. Daarna worden ze
+hervatbaar geüpload met het tus-protocol en op de server nog een keer gecontroleerd (ffprobe). Ze staan op het eigen Docker-volume
 `videos` (`VIDEOS_DIR`, in Docker `/data/videos`), nooit onder `/media`. Instellingen in `.env`
 (1 GB = 1024³ bytes):
 
@@ -93,6 +95,8 @@ het tus-protocol en direct na de upload gecontroleerd. Ze staan op het eigen Doc
 | `VIDEO_MIN_FREE_SPACE_GB` | 20 | vrije schijfruimte die na een upload moet overblijven |
 | `VIDEO_MAX_PARALLEL_UPLOADS` | 1 | uploads tegelijk per browsertabblad (alleen de browser dwingt dit af) |
 | `UPLOAD_EXPIRY_HOURS` | 24 | onvoltooide uploads zonder nieuw deel worden daarna opgeruimd |
+| `VIDEO_MAX_WIDTH` | 5760 | maximale breedte in beeldpunten (server en uploadvenster) |
+| `VIDEO_MAX_HEIGHT` | 2880 | maximale hoogte in beeldpunten (server en uploadvenster) |
 
 Na een wijziging: `docker compose up -d api`. Om een grote bibliotheek te testen (alleen
 ontwikkeling): `docker compose exec api node scripts/seed-videos.js <organisatiecode> 200`.

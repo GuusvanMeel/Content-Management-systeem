@@ -8,6 +8,7 @@ import VideosView from '../src/views/VideosView.vue'
 
 vi.mock('tus-js-client', async () => (await import('./tusMock')).tusModule())
 vi.mock('../src/api/videos', async () => (await import('./tusMock')).videosModule())
+vi.mock('../src/lib/videoPreview', () => ({ createPreview: vi.fn(async () => null) }))
 
 const VIDEOS = [
   { id: 2, name: 'Zwembad overzicht', durationSeconds: 95, fileSizeBytes: 3221225472, uploadedAt: '2026-10-22T09:14:03Z', thumbnailUrl: '/api/organisation/videos/2/thumbnail' },
@@ -91,5 +92,32 @@ describe('deleting a video', () => {
     expect(deleteVideo).toHaveBeenCalledWith(2)
     expect(ui.toasts.map((t) => t.message)).toContain('Video verwijderd')
     expect(listVideos).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('choosing files', () => {
+  it('opens the upload dialog for the chosen files instead of uploading straight away', async () => {
+    const wrapper = await mountView()
+    const input = wrapper.find('input[type="file"]')
+    const files = [new File(['x'], 'a.mp4', { type: 'video/mp4' }), new File(['y'], 'b.mov')]
+    Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain("Video's toevoegen (2)")
+    expect(useUploads().items).toEqual([])
+  })
+})
+
+describe('round upload button (FR-006a)', () => {
+  it('opens the file picker of this page through the uploads store, until the page is left', async () => {
+    const wrapper = await mountView()
+    const click = vi.spyOn(wrapper.find('input[type="file"]').element, 'click').mockImplementation(() => {})
+    useUploads().openFilePicker()
+    expect(click).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    useUploads().openFilePicker()
+    expect(click).toHaveBeenCalledTimes(1)
   })
 })

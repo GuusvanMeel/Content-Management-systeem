@@ -14,6 +14,8 @@ export const videoRoutes = Router()
 videoRoutes.get('/videos/upload-settings', (_req, res) => {
   res.json({
     maxFileSizeBytes: config.VIDEO_MAX_SIZE_BYTES,
+    maxWidth: config.VIDEO_MAX_WIDTH,
+    maxHeight: config.VIDEO_MAX_HEIGHT,
     maxParallelUploads: config.VIDEO_MAX_PARALLEL_UPLOADS,
     chunkSizeBytes: config.VIDEO_CHUNK_SIZE_BYTES,
     acceptedExtensions: ['.mp4'],

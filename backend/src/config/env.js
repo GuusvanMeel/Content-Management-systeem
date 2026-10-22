@@ -63,4 +63,7 @@ export const config = Object.freeze({
   VIDEO_MAX_PARALLEL_UPLOADS: positiveInteger('VIDEO_MAX_PARALLEL_UPLOADS', 1),
   VIDEO_CHUNK_SIZE_BYTES: 32 * 1024 * 1024,
   UPLOAD_EXPIRY_HOURS: positiveInteger('UPLOAD_EXPIRY_HOURS', 24),
+  // Maximum frame size in pixels; the browser reads the same values (FR-003a).
+  VIDEO_MAX_WIDTH: positiveInteger('VIDEO_MAX_WIDTH', 5760),
+  VIDEO_MAX_HEIGHT: positiveInteger('VIDEO_MAX_HEIGHT', 2880),
 })

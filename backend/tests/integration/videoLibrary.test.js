@@ -77,6 +77,8 @@ describe('GET /api/organisation/videos/upload-settings', () => {
     const response = await asA.get('/api/organisation/videos/upload-settings')
     expect(response.body).toEqual({
       maxFileSizeBytes: config.VIDEO_MAX_SIZE_BYTES,
+      maxWidth: 5760,
+      maxHeight: 2880,
       maxParallelUploads: config.VIDEO_MAX_PARALLEL_UPLOADS,
       chunkSizeBytes: 32 * 1024 * 1024,
       acceptedExtensions: ['.mp4'],

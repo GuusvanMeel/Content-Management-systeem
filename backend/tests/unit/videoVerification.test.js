@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { videoMessage } from '../../src/lib/videoMessages.js'
 import { makeThumbnail, probeVideo } from '../../src/lib/videoVerification.js'
 import { FIXTURES_DIR } from '../helpers/tus.js'
 
@@ -23,7 +24,7 @@ describe('probeVideo', () => {
     ['valid-512x256.mp4', 512, 256],
     ['valid-silent-1024x512.mp4', 1024, 512],
     ['valid-opus-audio-512x256.mp4', 512, 256],
-    ['valid-4096x2048.mp4', 4096, 2048],
+    ['valid-max-5760x2880.mp4', 5760, 2880],
   ])('accepts %s', async (name, width, height) => {
     expect(await probeVideo(fixture(name))).toEqual({ durationSeconds: 2, width, height })
   })
@@ -31,7 +32,7 @@ describe('probeVideo', () => {
   it.each([
     ['not-360-640x360.mp4', 'video_not_360'],
     ['square-1024x1024.mp4', 'video_not_360'],
-    ['too-large-4352x2176.mp4', 'video_resolution_too_high'],
+    ['too-large-6144x3072.mp4', 'video_resolution_too_high'],
     ['h265-512x256.mp4', 'video_unsupported_codec'],
     ['quicktime-512x256.mp4', 'video_unsupported_format'],
     ['audio-only.mp4', 'video_unreadable'],
@@ -40,12 +41,12 @@ describe('probeVideo', () => {
     await expect(probeVideo(fixture(name))).rejects.toMatchObject({ code, status: 422 })
   })
 
-  it('uses the customer-facing messages from contracts/api.md', async () => {
+  it('uses the plain-language messages from videoMessages.js', async () => {
     await expect(probeVideo(fixture('not-360-640x360.mp4'))).rejects.toMatchObject({
-      message: 'Dit is geen 360°-video: het beeld moet twee keer zo breed zijn als hoog (2:1).',
+      message: videoMessage('video_not_360'),
     })
-    await expect(probeVideo(fixture('too-large-4352x2176.mp4'))).rejects.toMatchObject({
-      message: 'De resolutie is te hoog: een video mag maximaal 4096×2048 pixels zijn.',
+    await expect(probeVideo(fixture('too-large-6144x3072.mp4'))).rejects.toMatchObject({
+      message: videoMessage('video_resolution_too_high'),
     })
   })
 })
@@ -62,8 +63,8 @@ describe('makeThumbnail', () => {
 
   it('probes and creates a thumbnail for the largest fixture within 20 s (FR-015)', async () => {
     const start = Date.now()
-    const { durationSeconds } = await probeVideo(fixture('valid-4096x2048.mp4'))
-    await makeThumbnail(fixture('valid-4096x2048.mp4'), path.join(tmp, 'big.jpg'), durationSeconds)
+    const { durationSeconds } = await probeVideo(fixture('valid-max-5760x2880.mp4'))
+    await makeThumbnail(fixture('valid-max-5760x2880.mp4'), path.join(tmp, 'big.jpg'), durationSeconds)
     expect(Date.now() - start).toBeLessThan(20000)
   })
 })

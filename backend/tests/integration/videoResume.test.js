@@ -1,13 +1,14 @@
 import { existsSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { config } from '../../src/config/env.js'
+import { videoMessage } from '../../src/lib/videoMessages.js'
 import * as videoStorage from '../../src/lib/videoStorage.js'
 import { datastore, uploadFilePath } from '../../src/modules/videos/tusServer.js'
 import { agentWithSession, createOrganisationRow, resetDatabase } from '../helpers/testApp.js'
 import { createUpload, deleteUpload, headUpload, patchChunk, readFixture, sendChunks } from '../helpers/tus.js'
 
 const FIXTURE = 'valid-silent-1024x512.mp4'
-const NO_SPACE = 'Er is op dit moment niet genoeg opslagruimte. Neem contact op met de beheerder.'
+const NO_SPACE = videoMessage('insufficient_storage')
 
 let asA
 let asB

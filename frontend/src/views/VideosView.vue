@@ -1,20 +1,21 @@
 <script setup>
 // Video library of the own organisation (specs/002 contracts/ui.md). Replaces the browser-only
 // prototype: videos come from the API, uploads go through the uploads store.
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { deleteVideo, listVideos } from '../api/videos'
 import { formatDate, formatDurationHms, formatGb, formatSize } from '../lib/format'
 import { confirmDialog, toast } from '../lib/ui'
 import { useUploads } from '../stores/uploads'
 import Icon from '../components/Icon.vue'
-import Modal from '../components/Modal.vue'
+import ResumeNotice from '../components/ResumeNotice.vue'
+import UploadDialog from '../components/UploadDialog.vue'
 
 const uploads = useUploads()
 const videos = ref([])
 const loaded = ref(false)
 const loadError = ref('')
 const fileInput = ref(null)
-const pending = ref(null) // { file, name } while the name dialog is open
+const chosenFiles = ref(null) // files in the upload dialog, or null when it is closed
 
 const maxGb = computed(() => (uploads.settings ? formatGb(uploads.settings.maxFileSizeBytes) : '10'))
 
@@ -29,9 +30,17 @@ async function load() {
   }
 }
 
+// The round upload button opens this page's file picker when no uploads are listed (FR-006a).
+let unregisterFilePicker = () => {}
+onBeforeUnmount(() => unregisterFilePicker())
+
 onMounted(() => {
+  unregisterFilePicker = uploads.registerFilePicker(chooseFiles)
   load()
-  uploads.ensureSettings().catch(() => {})
+  uploads
+    .ensureSettings()
+    .then(() => uploads.loadInterrupted())
+    .catch(() => {})
 })
 // Reload once an upload has been added to the library; there is no polling.
 watch(() => uploads.addedCount, load)
@@ -40,20 +49,22 @@ function chooseFiles() {
   fileInput.value.click()
 }
 
-function onFiles(event) {
+async function onFiles(event) {
   const files = [...event.target.files]
   event.target.value = ''
-  if (files.length === 1) {
-    pending.value = { file: files[0], name: files[0].name.replace(/\.mp4$/i, '') }
-  } else if (files.length > 1) {
-    uploads.addFiles(files)
+  if (files.length === 0) return
+  try {
+    await uploads.ensureSettings()
+  } catch {
+    return
   }
+  chosenFiles.value = files
 }
 
-function startPending() {
-  const { file, name } = pending.value
-  pending.value = null
-  uploads.addFiles([file], { name })
+// The dialog has checked every file before anything is sent (FR-013).
+function startUploads(entries) {
+  chosenFiles.value = null
+  uploads.addFiles(entries)
 }
 
 async function remove(video) {
@@ -85,6 +96,8 @@ async function remove(video) {
       <input ref="fileInput" type="file" accept=".mp4,video/mp4" multiple hidden data-test="file-input" @change="onFiles" />
     </div>
 
+    <ResumeNotice />
+
     <p v-if="loadError" class="error">{{ loadError }}</p>
 
     <ul v-if="videos.length" class="grid">
@@ -102,17 +115,7 @@ async function remove(video) {
       <button class="btn btn-primary" @click="chooseFiles"><Icon name="upload" :size="15" />Video toevoegen</button>
     </div>
 
-    <Modal v-if="pending" title="Video toevoegen" @close="pending = null">
-      <form id="video-name-form" class="field" @submit.prevent="startPending">
-        <label for="video-name">Naam</label>
-        <input id="video-name" v-model="pending.name" class="input" maxlength="255" />
-        <span class="muted small">{{ pending.file.name }} · {{ formatSize(pending.file.size) }}</span>
-      </form>
-      <template #foot>
-        <button class="btn btn-ghost" @click="pending = null">Annuleren</button>
-        <button class="btn btn-primary" type="submit" form="video-name-form">Uploaden</button>
-      </template>
-    </Modal>
+    <UploadDialog v-if="chosenFiles" :files="chosenFiles" :settings="uploads.settings" @close="chosenFiles = null" @submit="startUploads" />
   </div>
 </template>
 

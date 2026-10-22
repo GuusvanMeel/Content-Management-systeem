@@ -5,6 +5,7 @@ import { pipeline } from 'node:stream/promises'
 import { FileStore } from '@tus/file-store'
 import { Server } from '@tus/server'
 import { config } from '../../config/env.js'
+import { videoMessage } from '../../lib/videoMessages.js'
 import { incomingDir } from '../../lib/videoStorage.js'
 import { finaliseUpload, VideoRejectedError } from './videoService.js'
 
@@ -12,10 +13,6 @@ import { finaliseUpload, VideoRejectedError } from './videoService.js'
 // videoUploadGuard before a request reaches this server (research R3).
 
 export const UPLOADS_PATH = '/api/organisation/video-uploads'
-
-// Customer-facing (contracts/api.md), therefore in Dutch.
-export const INSUFFICIENT_STORAGE_MESSAGE =
-  'Er is op dit moment niet genoeg opslagruimte. Neem contact op met de beheerder.'
 
 /** tus sends `body` as-is; we use the API error format so the browser can show `message`. */
 export function tusError(status, code, message) {
@@ -33,7 +30,7 @@ export class VideoFileStore extends FileStore {
     } catch (err) {
       if (err?.code === 'ENOSPC') {
         await this.remove(fileId).catch(() => {})
-        throw tusError(507, 'insufficient_storage', INSUFFICIENT_STORAGE_MESSAGE)
+        throw tusError(507, 'insufficient_storage', videoMessage('insufficient_storage'))
       }
       if (err?.status_code) throw err
       console.error('video upload write failed:', err)

@@ -1,9 +1,10 @@
 import { mkdir } from 'node:fs/promises'
 import { config } from '../../config/env.js'
 import { AppError, validationError } from '../../lib/errors.js'
+import { videoMessage } from '../../lib/videoMessages.js'
 import * as videoStorage from '../../lib/videoStorage.js'
 import { getOrganisationId } from '../../middleware/requireOrganisation.js'
-import { datastore, INSUFFICIENT_STORAGE_MESSAGE, removeUpload } from './tusServer.js'
+import { datastore, removeUpload } from './tusServer.js'
 
 // Runs before the tus server for every upload request (specs/002 research R3, R5, R6). The tus
 // server itself knows nothing about organisations.
@@ -12,7 +13,7 @@ const NAME_MAX = 255
 const UPLOAD_ID = /^[0-9a-f]{16,64}$/
 
 const notFound = () => new AppError(404, 'not_found', 'Niet gevonden.')
-const insufficientStorage = () => new AppError(507, 'insufficient_storage', INSUFFICIENT_STORAGE_MESSAGE)
+const insufficientStorage = () => new AppError(507, 'insufficient_storage', videoMessage('insufficient_storage'))
 
 /** Parses a tus Upload-Metadata header ("key base64,key2 base64,key3") into a plain object. */
 export function parseMetadata(header) {
@@ -36,12 +37,12 @@ async function guardCreate(req) {
     throw new AppError(400, 'upload_length_required', 'Dit verzoek is ongeldig.')
   }
   if (length > config.VIDEO_MAX_SIZE_BYTES) {
-    throw new AppError(413, 'video_too_large', `Een video mag maximaal ${config.VIDEO_MAX_SIZE_GB} GB zijn.`)
+    throw new AppError(413, 'video_too_large', videoMessage('video_too_large'))
   }
 
   const metadata = parseMetadata(req.get('Upload-Metadata'))
   if (!/\.mp4$/i.test(metadata.filename ?? '')) {
-    throw new AppError(415, 'video_unsupported_format', "Alleen MP4-video's (H.264) worden ondersteund.")
+    throw new AppError(415, 'video_unsupported_format', videoMessage('video_unsupported_format'))
   }
   if ((metadata.name ?? '').trim().length > NAME_MAX) {
     throw validationError({ name: 'De naam mag maximaal 255 tekens lang zijn.' })

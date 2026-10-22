@@ -14,3 +14,5 @@ specs
 .claude
 .specify
 backend
+# The frontend tests check videos in the browser on the same test videos as the server.
+!backend/tests/fixtures/videos

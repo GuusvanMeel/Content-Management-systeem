@@ -5,6 +5,7 @@ import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { config } from '../../src/config/env.js'
 import { db } from '../../src/db/knex.js'
+import { videoMessage } from '../../src/lib/videoMessages.js'
 import * as videoStorage from '../../src/lib/videoStorage.js'
 import {
   agentWithSession,
@@ -16,14 +17,7 @@ import {
 } from '../helpers/testApp.js'
 import { createUpload, encodeMetadata, readFixture, sendChunks, UPLOADS_PATH, uploadFixture } from '../helpers/tus.js'
 
-const MESSAGES = {
-  video_unsupported_format: "Alleen MP4-video's (H.264) worden ondersteund.",
-  video_unsupported_codec: "Alleen MP4-video's (H.264) worden ondersteund. Deze video gebruikt een andere codec.",
-  video_not_360: 'Dit is geen 360°-video: het beeld moet twee keer zo breed zijn als hoog (2:1).',
-  video_resolution_too_high: 'De resolutie is te hoog: een video mag maximaal 4096×2048 pixels zijn.',
-  video_unreadable: 'Dit bestand kan niet gelezen worden. Controleer of het een werkende video is.',
-}
-const NO_SPACE = 'Er is op dit moment niet genoeg opslagruimte. Neem contact op met de beheerder.'
+const NO_SPACE = videoMessage('insufficient_storage')
 
 let a
 let b
@@ -99,7 +93,7 @@ describe('video upload: valid file', () => {
     expect((await db('Video').where({ id: video.id }).first()).ownerOrganisationId).toBe(a.id)
   })
 
-  it.each(['valid-silent-1024x512.mp4', 'valid-opus-audio-512x256.mp4', 'valid-4096x2048.mp4'])(
+  it.each(['valid-silent-1024x512.mp4', 'valid-opus-audio-512x256.mp4', 'valid-max-5760x2880.mp4'])(
     'accepts %s',
     async (fixture) => {
       const { last } = await uploadFixture(asA, fixture, { chunkSize: 32 * 1024 })
@@ -112,7 +106,7 @@ describe('video upload: rejected after the upload', () => {
   it.each([
     ['not-360-640x360.mp4', 'video_not_360'],
     ['square-1024x1024.mp4', 'video_not_360'],
-    ['too-large-4352x2176.mp4', 'video_resolution_too_high'],
+    ['too-large-6144x3072.mp4', 'video_resolution_too_high'],
     ['h265-512x256.mp4', 'video_unsupported_codec'],
     ['quicktime-512x256.mp4', 'video_unsupported_format'],
     ['audio-only.mp4', 'video_unreadable'],
@@ -120,7 +114,7 @@ describe('video upload: rejected after the upload', () => {
   ])('%s → 422 %s, nothing stored', async (fixture, code) => {
     const { last } = await uploadFixture(asA, fixture, { chunkSize: 32 * 1024 })
     expect(last.status).toBe(422)
-    expect(JSON.parse(last.text)).toEqual({ error: { code, message: MESSAGES[code] } })
+    expect(JSON.parse(last.text)).toEqual({ error: { code, message: videoMessage(code) } })
     expect(await db('Video').count({ n: '*' }).first()).toEqual({ n: 0 })
     expect(await filesUnder('videos')).toEqual([])
     expect(await filesUnder('thumbnails')).toEqual([])
@@ -132,7 +126,7 @@ describe('video upload: rejected when creating the upload', () => {
   it('refuses a file that does not end in .mp4 (415)', async () => {
     const { response } = await createUpload(asA, { size: 1000, filename: 'clip.mov' })
     expect(response.status).toBe(415)
-    expect(response.body.error).toEqual({ code: 'video_unsupported_format', message: MESSAGES.video_unsupported_format })
+    expect(response.body.error).toEqual({ code: 'video_unsupported_format', message: videoMessage('video_unsupported_format') })
   })
 
   it('refuses a file larger than the maximum (413)', async () => {
@@ -140,7 +134,7 @@ describe('video upload: rejected when creating the upload', () => {
     expect(response.status).toBe(413)
     expect(response.body.error).toEqual({
       code: 'video_too_large',
-      message: `Een video mag maximaal ${config.VIDEO_MAX_SIZE_GB} GB zijn.`,
+      message: videoMessage('video_too_large'),
     })
   })
 

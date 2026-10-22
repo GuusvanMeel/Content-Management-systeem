@@ -5,6 +5,8 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# The browser check is tested on the same test videos as the server (specs/002 research R12).
+COPY backend/tests/fixtures/videos/ /backend/tests/fixtures/videos/
 RUN npm run build
 
 FROM nginx:stable-alpine

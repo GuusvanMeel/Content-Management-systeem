@@ -42,12 +42,15 @@ sessiecookie `sid`, CSRF-header `X-Requested-With: cms` op schrijvende verzoeken
 - `200`:
 
   ```json
-  { "maxFileSizeBytes": 10737418240, "maxParallelUploads": 1,
+  { "maxFileSizeBytes": 10737418240, "maxWidth": 5760, "maxHeight": 2880, "maxParallelUploads": 1,
     "chunkSizeBytes": 33554432, "acceptedExtensions": [".mp4"],
     "uploadEndpoint": "/api/organisation/video-uploads" }
   ```
 
-- Waarden uit `.env` (research R10). `maxParallelUploads` wordt alleen in de browser gebruikt.
+- Waarden uit `.env` (research R10): `VIDEO_MAX_SIZE_GB`, `VIDEO_MAX_WIDTH`, `VIDEO_MAX_HEIGHT`,
+  `VIDEO_MAX_PARALLEL_UPLOADS`. De browser controleert er een bestand mee vóór de upload
+  (research R13); de server gebruikt dezelfde waarden. `maxParallelUploads` wordt alleen in de
+  browser gebruikt.
 
 ## Hervatbaar uploaden (tus 1.0)
 
@@ -68,9 +71,8 @@ Headers:
 Antwoorden:
 - `201` + `Location: /api/organisation/video-uploads/<uploadId>`.
 - `400 validation_failed`, `fields.name`: naam langer dan 255 tekens.
-- `413 video_too_large`: "Een video mag maximaal 10 GB zijn." (FR-004)
-- `415 video_unsupported_format`: bestandsnaam eindigt niet op `.mp4`: "Alleen MP4-video's
-  (H.264) worden ondersteund." (FR-002)
+- `413 video_too_large`: "Deze video is groter dan 10 GB. Maak de video korter of sla hem op in een lagere kwaliteit." (met het ingestelde getal, FR-004)
+- `415 video_unsupported_format`: bestandsnaam eindigt niet op `.mp4`: "Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4)." (FR-002)
 - `507 insufficient_storage`: "Er is op dit moment niet genoeg opslagruimte. Neem contact op met
   de beheerder." (FR-004a)
 
@@ -93,11 +95,14 @@ aan de stand op de server). Body: hooguit `chunkSizeBytes` bytes.
 
     | `code` | `message` |
     | --- | --- |
-    | `video_unsupported_format` | Alleen MP4-video's (H.264) worden ondersteund. |
-    | `video_unsupported_codec` | Alleen MP4-video's (H.264) worden ondersteund. Deze video gebruikt een andere codec. |
-    | `video_not_360` | Dit is geen 360°-video: het beeld moet twee keer zo breed zijn als hoog (2:1). |
-    | `video_resolution_too_high` | De resolutie is te hoog: een video mag maximaal 4096×2048 pixels zijn. |
-    | `video_unreadable` | Dit bestand kan niet gelezen worden. Controleer of het een werkende video is. |
+    | `video_unsupported_format` | Dit bestandstype kan niet worden gebruikt. Kies een MP4-video (de bestandsnaam eindigt op .mp4). |
+    | `video_unsupported_codec` | Deze video is op een manier opgeslagen die de VR-bril niet kan afspelen. Sla de video in je bewerkingsprogramma opnieuw op als MP4 met de instelling ‘H.264’. |
+    | `video_not_360` | Dit is geen 360°-video. Kies een video die met een 360°-camera is gemaakt; zo'n beeld is twee keer zo breed als hoog. |
+    | `video_resolution_too_high` | De beeldkwaliteit van deze video is te hoog voor de VR-bril. Sla de video opnieuw op met een lagere resolutie: maximaal 5760 × 2880 beeldpunten. (getallen uit `VIDEO_MAX_WIDTH`/`VIDEO_MAX_HEIGHT`) |
+    | `video_unreadable` | Dit bestand kan niet als video worden geopend. Controleer of de video op je computer goed afspeelt en probeer het opnieuw. |
+
+    De browser toont dezelfde teksten al vóór de upload (research R13, R15); deze antwoorden
+    komen dus alleen voor als de browser het bestand niet kon lezen of de controle is omzeild.
 
 - `409`: `Upload-Offset` klopt niet met de stand op de server (client vraagt opnieuw `HEAD`).
 - `404 not_found`: onbekend, opgeruimd of van een andere organisatie.
