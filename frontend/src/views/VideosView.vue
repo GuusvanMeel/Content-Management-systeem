@@ -1,108 +1,79 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useApp } from '../stores/app'
-import { videoThumb } from '../lib/panorama'
-import { formatDuration, uid } from '../lib/util'
+// Video library of the own organisation (specs/002 contracts/ui.md). Replaces the browser-only
+// prototype: videos come from the API, uploads go through the uploads store.
+import { computed, onMounted, ref, watch } from 'vue'
+import { deleteVideo, listVideos } from '../api/videos'
+import { formatDate, formatDurationHms, formatGb, formatSize } from '../lib/format'
 import { confirmDialog, toast } from '../lib/ui'
+import { useUploads } from '../stores/uploads'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
 
-const app = useApp()
+const uploads = useUploads()
+const videos = ref([])
+const loaded = ref(false)
+const loadError = ref('')
 const fileInput = ref(null)
-const uploads = ref([])
-const error = ref('')
-const openId = ref(null)
-const open = computed(() => (openId.value ? app.videosById[openId.value] : null))
-const usage = computed(() => (open.value ? app.videoUsage(open.value.id) : []))
+const pending = ref(null) // { file, name } while the name dialog is open
 
-const SUPPORTED = ['mp4', 'webm']
+const maxGb = computed(() => (uploads.settings ? formatGb(uploads.settings.maxFileSizeBytes) : '10'))
 
-// Reads size, duration and a thumbnail frame. Nothing is played.
-function readMeta(file) {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file)
-    const el = document.createElement('video')
-    let done = false
-    const finish = (meta) => {
-      if (done) return
-      done = true
-      URL.revokeObjectURL(url)
-      resolve(meta)
-    }
-    el.preload = 'metadata'
-    el.muted = true
-    el.src = url
-    el.onloadedmetadata = () => {
-      const meta = { width: el.videoWidth, height: el.videoHeight, duration: el.duration }
-      el.currentTime = Math.min(1, el.duration / 2)
-      el.onseeked = () => {
-        let thumb = null
-        try {
-          const c = document.createElement('canvas')
-          c.width = 512
-          c.height = 256
-          c.getContext('2d').drawImage(el, 0, 0, 512, 256)
-          thumb = c.toDataURL('image/jpeg', 0.75)
-        } catch {
-          // A thumbnail is optional; some videos cannot be drawn to a canvas.
-        }
-        finish({ ...meta, thumb })
-      }
-    }
-    el.onerror = () => finish({ unreadable: true })
-    setTimeout(() => finish({ unreadable: true }), 6000)
-  })
-}
-
-async function onFiles(files) {
-  error.value = ''
-  for (const file of files) {
-    const ext = file.name.split('.').pop().toLowerCase()
-    if (!SUPPORTED.includes(ext)) {
-      error.value = `${file.name}: dit formaat wordt niet ondersteund. Gebruik MP4 of WebM.`
-      continue
-    }
-    const item = { id: uid('up'), name: file.name.replace(/\.[^.]+$/, ''), progress: 0 }
-    uploads.value.push(item)
-    const meta = await readMeta(file)
-    if (!meta.unreadable && Math.abs(meta.width / meta.height - 2) > 0.05 && Math.abs(meta.width / meta.height - 1) > 0.05) {
-      uploads.value = uploads.value.filter((u) => u.id !== item.id)
-      error.value = `${file.name}: dit is geen 360°-video (${meta.width} × ${meta.height}). Een 360°-video is twee keer zo breed als hoog.`
-      continue
-    }
-    await fakeUpload(item.id)
-    uploads.value = uploads.value.filter((u) => u.id !== item.id)
-    app.addVideo({
-      name: item.name,
-      duration: meta.unreadable ? 0 : Math.round(meta.duration),
-      resolution: meta.unreadable ? 'onbekend' : `${meta.width} × ${meta.height}`,
-      format: ext.toUpperCase(),
-      sizeMB: Math.max(1, Math.round(file.size / 1e6)),
-      thumb: meta.thumb ?? null,
-      scene: { kind: 'hall', seed: Math.floor(Math.random() * 999) },
-    })
+async function load() {
+  try {
+    videos.value = await listVideos()
+    loadError.value = ''
+  } catch (err) {
+    if (err.status !== 401) loadError.value = "De video's konden niet worden geladen. Probeer het later opnieuw."
+  } finally {
+    loaded.value = true
   }
 }
-function fakeUpload(id) {
-  const t0 = performance.now()
-  return new Promise((resolve) => {
-    const step = () => {
-      const p = Math.min(1, (performance.now() - t0) / 1500)
-      const u = uploads.value.find((x) => x.id === id)
-      if (u) u.progress = p
-      p < 1 ? requestAnimationFrame(step) : resolve()
-    }
-    step()
-  })
+
+onMounted(() => {
+  load()
+  uploads.ensureSettings().catch(() => {})
+})
+// Reload once an upload has been added to the library; there is no polling.
+watch(() => uploads.addedCount, load)
+
+function chooseFiles() {
+  fileInput.value.click()
 }
 
-async function remove() {
-  const v = open.value
-  const ok = await confirmDialog({ title: 'Video verwijderen?', body: `“${v.name}” wordt uit de bibliotheek verwijderd.`, confirmLabel: 'Verwijderen', danger: true })
-  if (ok && app.deleteVideo(v.id)) {
-    openId.value = null
+function onFiles(event) {
+  const files = [...event.target.files]
+  event.target.value = ''
+  if (files.length === 1) {
+    pending.value = { file: files[0], name: files[0].name.replace(/\.mp4$/i, '') }
+  } else if (files.length > 1) {
+    uploads.addFiles(files)
+  }
+}
+
+function startPending() {
+  const { file, name } = pending.value
+  pending.value = null
+  uploads.addFiles([file], { name })
+}
+
+async function remove(video) {
+  const ok = await confirmDialog({
+    title: 'Video verwijderen?',
+    body: `“${video.name}” verdwijnt uit de videobibliotheek.`,
+    confirmLabel: 'Verwijderen',
+    danger: true,
+  })
+  if (!ok) return
+  try {
+    await deleteVideo(video.id)
     toast('Video verwijderd')
+  } catch (err) {
+    if (err.status !== 404) {
+      toast(err.message)
+      return
+    }
   }
+  await load()
 }
 </script>
 
@@ -110,52 +81,36 @@ async function remove() {
   <div class="page">
     <div class="page-head">
       <h1>Video’s</h1>
-      <button class="btn btn-primary" @click="fileInput.click()"><Icon name="upload" :size="15" />Video uploaden</button>
-      <input id="video-file" ref="fileInput" type="file" accept=".mp4,.webm,video/mp4,video/webm" multiple hidden @change="onFiles([...$event.target.files]); $event.target.value = ''" />
+      <button class="btn btn-primary" @click="chooseFiles"><Icon name="upload" :size="15" />Video toevoegen</button>
+      <input ref="fileInput" type="file" accept=".mp4,video/mp4" multiple hidden data-test="file-input" @change="onFiles" />
     </div>
 
-    <p v-if="error" class="error">
-      <span>{{ error }}</span>
-      <button class="icon-btn" aria-label="Melding sluiten" @click="error = ''"><Icon name="x" :size="15" /></button>
-    </p>
+    <p v-if="loadError" class="error">{{ loadError }}</p>
 
-    <ul class="grid">
-      <li v-for="u in uploads" :key="u.id" class="card uploading">
-        <span class="th"><span class="bar"><span :style="{ width: u.progress * 100 + '%' }"></span></span></span>
-        <span class="name">{{ u.name }}</span>
-        <span class="meta">Uploaden…</span>
-      </li>
-      <li v-for="v in app.orgVideos" :key="v.id">
-        <button class="card" @click="openId = v.id">
-          <span class="th" :style="{ backgroundImage: `url(${videoThumb(v)})` }"></span>
-          <span class="name">{{ v.name }}</span>
-          <span class="meta">{{ formatDuration(v.duration) }}<template v-if="!app.videoUsage(v.id).length"> · niet in gebruik</template></span>
-        </button>
+    <ul v-if="videos.length" class="grid">
+      <li v-for="video in videos" :key="video.id" class="card">
+        <img class="th" :src="video.thumbnailUrl" :alt="video.name" loading="lazy" />
+        <span class="name">{{ video.name }}</span>
+        <span class="meta">{{ formatDurationHms(video.durationSeconds) }} · {{ formatSize(video.fileSizeBytes) }}</span>
+        <span class="meta">Geüpload op {{ formatDate(video.uploadedAt) }}</span>
+        <button class="btn btn-danger btn-sm delete" @click="remove(video)"><Icon name="trash" :size="14" />Verwijderen</button>
       </li>
     </ul>
-    <p v-if="!app.orgVideos.length && !uploads.length" class="muted">Nog geen video’s. Upload een 360°-video in MP4 of WebM.</p>
 
-    <Modal v-if="open" title="Video" width="560px" @close="openId = null">
-      <span class="big-th" :style="{ backgroundImage: `url(${videoThumb(open)})` }"></span>
-      <div class="field">
+    <div v-else-if="loaded && !loadError" class="empty">
+      <p>Er staan nog geen video's in de bibliotheek. Voeg een 360°-video toe (MP4, H.264, maximaal {{ maxGb }} GB).</p>
+      <button class="btn btn-primary" @click="chooseFiles"><Icon name="upload" :size="15" />Video toevoegen</button>
+    </div>
+
+    <Modal v-if="pending" title="Video toevoegen" @close="pending = null">
+      <form id="video-name-form" class="field" @submit.prevent="startPending">
         <label for="video-name">Naam</label>
-        <input id="video-name" v-model="open.name" class="input" />
-      </div>
-      <dl class="facts">
-        <div><dt>Duur</dt><dd>{{ formatDuration(open.duration) }}</dd></div>
-        <div><dt>Resolutie</dt><dd>{{ open.resolution }}</dd></div>
-        <div><dt>Formaat</dt><dd>{{ open.format }}</dd></div>
-      </dl>
-      <div class="field">
-        <span class="label">Gebruikt in</span>
-        <ul v-if="usage.length" class="usage">
-          <li v-for="c in usage" :key="c.id"><RouterLink :to="'/courses/' + c.id" @click="openId = null">{{ c.name }}</RouterLink></li>
-        </ul>
-        <span v-else class="muted">Geen cursussen</span>
-      </div>
+        <input id="video-name" v-model="pending.name" class="input" maxlength="255" />
+        <span class="muted small">{{ pending.file.name }} · {{ formatSize(pending.file.size) }}</span>
+      </form>
       <template #foot>
-        <span v-if="usage.length" class="muted small foot-note">Kan niet verwijderd worden zolang een cursus deze video gebruikt.</span>
-        <button class="btn btn-danger" :disabled="!!usage.length" @click="remove">Verwijderen</button>
+        <button class="btn btn-ghost" @click="pending = null">Annuleren</button>
+        <button class="btn btn-primary" type="submit" form="video-name-form">Uploaden</button>
       </template>
     </Modal>
   </div>
@@ -163,11 +118,7 @@ async function remove() {
 
 <style scoped>
 .error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 6px 6px 14px;
+  padding: 8px 14px;
   border-radius: var(--r);
   background: var(--err-soft);
   color: var(--err);
@@ -177,39 +128,21 @@ async function remove() {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px 16px;
 }
-.card {
-  width: 100%;
-  display: grid;
-  gap: 2px;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
+.card { display: grid; gap: 2px; align-content: start; }
 .th {
+  width: 100%;
   aspect-ratio: 2 / 1;
+  object-fit: cover;
   border-radius: var(--r);
-  background: var(--surface-2) center / cover;
-  margin-bottom: 6px;
   border: 1px solid var(--line);
-  display: grid;
-  align-items: end;
-  padding: 10px;
+  background: var(--surface-2);
+  margin-bottom: 6px;
 }
-.card:hover .th { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
-.name { font-weight: 500; font-size: 0.9rem; line-height: 1.35; }
+.name { font-weight: 500; font-size: 0.9rem; line-height: 1.35; overflow-wrap: anywhere; }
 .meta { font-size: 0.82rem; color: var(--muted); }
-.bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.bar span { display: block; height: 100%; background: var(--brand-2); }
-.uploading { cursor: default; }
-.big-th { display: block; aspect-ratio: 2 / 1; max-width: 100%; border-radius: var(--r); background: var(--surface-2) center / cover; }
-.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
-.facts dt { font-size: 0.82rem; color: var(--muted); }
-.facts dd { margin: 0; }
-.usage { margin: 0; padding-left: 18px; }
-.foot-note { margin-right: auto; align-self: center; }
+.delete { justify-self: start; margin-top: 4px; }
+.empty { display: grid; justify-items: start; gap: 12px; color: var(--muted); }
 </style>

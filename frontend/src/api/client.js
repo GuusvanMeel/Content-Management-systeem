@@ -18,6 +18,11 @@ export function onUnauthorized(handler) {
   unauthorizedHandler = handler
 }
 
+/** Reports a 401 that did not come through api(), e.g. from a tus upload request. */
+export function notifyUnauthorized(error) {
+  unauthorizedHandler?.(error)
+}
+
 /**
  * Calls the API. Only user actions call this: the frontend never polls in the background, so an
  * open but unused tab does not keep the session alive (contracts/ui.md).

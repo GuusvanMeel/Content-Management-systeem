@@ -11,6 +11,8 @@ import { authRoutes } from './modules/auth/authRoutes.js'
 import { organisationSelfRoutes } from './modules/organisationSelf/organisationSelfRoutes.js'
 import { adminOrganisationRoutes } from './modules/organisations/adminOrganisationRoutes.js'
 import { styleRoutes } from './modules/style/styleRoutes.js'
+import { videoRoutes } from './modules/videos/videoRoutes.js'
+import { videoUploadRoutes } from './modules/videos/videoUploadRoutes.js'
 
 export function createApp() {
   const app = express()
@@ -42,7 +44,9 @@ export function createApp() {
 
   // Every route under /api/organisation MUST take the organisation id from
   // getOrganisationId(req), never from params, query or body (FR-022, research R8).
-  app.use('/api/organisation', requireOrganisation, organisationSelfRoutes, styleRoutes)
+  // express.json only reads application/json, so tus chunks (application/offset+octet-stream)
+  // reach the tus server untouched.
+  app.use('/api/organisation', requireOrganisation, organisationSelfRoutes, styleRoutes, videoRoutes, videoUploadRoutes)
 
   app.use('/api', notFoundHandler)
   app.use(errorHandler)

@@ -25,8 +25,11 @@ services:
       DB_HOST: db
       DB_PORT: 3306
       UPLOADS_DIR: /data/uploads
+      VIDEOS_DIR: /data/videos
     volumes:
       - uploads:/data/uploads
+      # Videos live on their own volume: never under /media (specs/002 research R2).
+      - videos:/data/videos
     depends_on:
       db:
         condition: service_healthy
@@ -41,6 +44,7 @@ services:
       - "443:443"
     volumes:
       - uploads:/data/uploads:ro
+      - videos:/data/videos:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - api
@@ -76,6 +80,7 @@ services:
       DB_HOST: db-test
       DB_PORT: 3306
       UPLOADS_DIR: /tmp/uploads
+      VIDEOS_DIR: /tmp/videos
     depends_on:
       db-test:
         condition: service_healthy
@@ -91,3 +96,4 @@ services:
 volumes:
   db-data:
   uploads:
+  videos:

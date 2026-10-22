@@ -16,7 +16,7 @@ if (existsSync(envFile)) {
 const env = process.env
 const NODE_ENV = env.NODE_ENV || 'development'
 
-const required = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'API_PORT', 'UPLOADS_DIR']
+const required = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'API_PORT', 'UPLOADS_DIR', 'VIDEOS_DIR']
 if (NODE_ENV === 'test') required.push('TEST_DB_NAME')
 
 const missing = required.filter((key) => !env[key])
@@ -36,6 +36,11 @@ function positiveInteger(key, fallback) {
   return value
 }
 
+// 1 GB = 1024^3 bytes, for both limits and display (specs/002 research R5).
+const GIB = 1024 ** 3
+const videoMaxSizeGb = positiveInteger('VIDEO_MAX_SIZE_GB', 10)
+const videoMinFreeSpaceGb = positiveInteger('VIDEO_MIN_FREE_SPACE_GB', 20)
+
 export const config = Object.freeze({
   NODE_ENV,
   DB_HOST: env.DB_HOST,
@@ -48,4 +53,14 @@ export const config = Object.freeze({
   UPLOADS_DIR: path.resolve(repoRoot, env.UPLOADS_DIR),
   COOKIE_SECURE: env.COOKIE_SECURE !== 'false',
   SESSION_IDLE_TIMEOUT_MINUTES: positiveInteger('SESSION_IDLE_TIMEOUT_MINUTES', 60),
+  // Video library (specs/002): files live outside UPLOADS_DIR, which is public under /media.
+  VIDEOS_DIR: path.resolve(repoRoot, env.VIDEOS_DIR),
+  VIDEO_MAX_SIZE_GB: videoMaxSizeGb,
+  VIDEO_MAX_SIZE_BYTES: videoMaxSizeGb * GIB,
+  VIDEO_MIN_FREE_SPACE_GB: videoMinFreeSpaceGb,
+  VIDEO_MIN_FREE_SPACE_BYTES: videoMinFreeSpaceGb * GIB,
+  // Enforced only in the browser; the server just reports it (FR-006b).
+  VIDEO_MAX_PARALLEL_UPLOADS: positiveInteger('VIDEO_MAX_PARALLEL_UPLOADS', 1),
+  VIDEO_CHUNK_SIZE_BYTES: 32 * 1024 * 1024,
+  UPLOAD_EXPIRY_HOURS: positiveInteger('UPLOAD_EXPIRY_HOURS', 24),
 })

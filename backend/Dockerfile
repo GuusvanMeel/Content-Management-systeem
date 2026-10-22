@@ -1,4 +1,6 @@
 FROM node:22-alpine AS base
+# ffprobe/ffmpeg verify uploaded videos and create thumbnails (specs/002 research R4).
+RUN apk add --no-cache ffmpeg
 WORKDIR /app
 COPY package.json package-lock.json ./
 

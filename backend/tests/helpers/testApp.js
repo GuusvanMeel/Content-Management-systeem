@@ -1,20 +1,56 @@
-import { rm } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import request from 'supertest'
 import { createApp } from '../../src/app.js'
 import { config } from '../../src/config/env.js'
 import { db } from '../../src/db/knex.js'
 import { generateQuestLinkCode } from '../../src/lib/codes.js'
 import { hashPassword } from '../../src/lib/password.js'
+import * as videoStorage from '../../src/lib/videoStorage.js'
 import { createSession } from '../../src/modules/auth/sessionRepository.js'
+import { JPG_BYTES } from './images.js'
 
 export const app = createApp()
 
-/** Empties all tables (children first) and the uploads directory. */
+/** Empties all tables (children first), the uploads directory and the videos directory. */
 export async function resetDatabase() {
-  for (const table of ['AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
+  for (const table of ['Video', 'AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
     await db(table).del()
   }
   await rm(config.UPLOADS_DIR, { recursive: true, force: true })
+  await rm(config.VIDEOS_DIR, { recursive: true, force: true })
+}
+
+/**
+ * Inserts a verified video directly (without an upload), with a small JPEG thumbnail and a
+ * placeholder video file on disk. `uploadedAt` can be set to control the order.
+ */
+export async function createVideoRow({
+  organisationId,
+  name = 'Testvideo',
+  durationSeconds = 95,
+  fileSizeBytes = 3221225472,
+  uploadedAt = new Date(),
+  deletedAt = null,
+} = {}) {
+  const keys = videoStorage.newVideoKeys(organisationId)
+  for (const [key, bytes] of [[keys.storageKey, Buffer.from('video')], [keys.thumbnailStorageKey, JPG_BYTES]]) {
+    const file = videoStorage.getPath(key)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, bytes)
+  }
+  const [id] = await db('Video').insert({
+    ownerOrganisationId: organisationId,
+    name,
+    description: null,
+    ...keys,
+    fileSizeBytes,
+    durationSeconds,
+    visibility: 'private',
+    uploadedAt,
+    deletedAt,
+  })
+  return { id, name, ...keys }
 }
 
 export async function createAdmin(username = 'beheer', password = 'admin-password-123') {

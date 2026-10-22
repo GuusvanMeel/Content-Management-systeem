@@ -4,8 +4,11 @@ node_modules/
 dist/
 coverage/
 # videos, uploads and database files
-videos/
+/videos/
 dbdata/
 uploads/
 # local TLS certificates (nginx/dev-cert.sh)
 nginx/certs/
+# Software Ideas Modeler user state and Office lock files
+docs/*.simp.user
+docs/~$*
