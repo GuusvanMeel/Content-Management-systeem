@@ -1,9 +1,15 @@
+import http from 'node:http'
 import { createApp } from './app.js'
 import { config } from './config/env.js'
 import { startSessionCleanup } from './jobs/sessionCleanup.js'
 import { startUploadCleanup } from './jobs/uploadCleanup.js'
 
-const server = createApp().listen(config.API_PORT, () => {
+// A tus Upload-Metadata header with a description of 1000 characters and the chosen organisations
+// can reach about 13 KB, while Node allows 16 KB for all headers together (specs/003 research R4).
+const MAX_HEADER_SIZE = 32 * 1024
+
+const server = http.createServer({ maxHeaderSize: MAX_HEADER_SIZE }, createApp())
+server.listen(config.API_PORT, () => {
   console.log(`API listening on port ${config.API_PORT}`)
 })
 

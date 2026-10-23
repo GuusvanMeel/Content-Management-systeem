@@ -97,9 +97,25 @@ hervatbaar geüpload met het tus-protocol en op de server nog een keer gecontrol
 | `UPLOAD_EXPIRY_HOURS` | 24 | onvoltooide uploads zonder nieuw deel worden daarna opgeruimd |
 | `VIDEO_MAX_WIDTH` | 5760 | maximale breedte in beeldpunten (server en uploadvenster) |
 | `VIDEO_MAX_HEIGHT` | 2880 | maximale hoogte in beeldpunten (server en uploadvenster) |
+| `VIDEO_DEFAULT_VISIBILITY` | `private` | beschikbaarheid die in het uploadvenster vooraf is gekozen: `public`, `selective` of `private`; een ongeldige waarde geeft `private` en een waarschuwing in de log |
 
-Na een wijziging: `docker compose up -d api`. Om een grote bibliotheek te testen (alleen
-ontwikkeling): `docker compose exec api node scripts/seed-videos.js <organisatiecode> 200`.
+Na een wijziging: `docker compose up -d api`.
+
+De bibliotheek is gedeeld tussen organisaties (specs/003). Per video kiest de uploader
+"Algemeen beschikbaar" (alle organisaties), "Selectief beschikbaar" (gekozen organisaties) of
+"Alleen eigen organisatie", en optioneel een beschrijving van maximaal 1000 tekens. Alleen de
+eigenaar kan naam, beschrijving en beschikbaarheid wijzigen of de video verwijderen; andere
+organisaties zien de video met de naam van de eigenaar. Zoeken, sorteren en filteren gebeurt in
+de browser op de volledige lijst.
+
+Om een grote bibliotheek te testen (alleen ontwikkeling; zonder `-e NODE_ENV=development`
+weigert het script in de productiecontainer):
+
+```bash
+docker compose exec -e NODE_ENV=development api node scripts/seed-videos.js <organisatiecode> 200 public
+```
+
+Het derde argument is `public` of `private` (standaard `private`).
 
 ## Sessies
 

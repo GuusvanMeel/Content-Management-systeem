@@ -44,6 +44,20 @@ verwijderen).
   ervoor (zoekterm, filter, sortering en scrollpositie). Naam, beschrijving en beschikbaarheid
   wijzigt de eigenaar in hetzelfde venster.
 
+### Session 2026-10-23 (na de eerste implementatie)
+
+- Q: Hoe vallen video's van andere organisaties op? → A: Met een duidelijk zichtbaar label
+  (pil) met de naam van de eigenaar, in een eigen kleur, in de lijst en in het videovenster.
+  Eigen video's krijgen een onopvallend, neutraal label "Eigen". Klikken op de pil van een
+  andere organisatie filtert de bibliotheek op die organisatie; het actieve filter staat als
+  verwijderbaar label "Organisatie: <naam> ✕" naast het zoekveld en werkt samen met zoeken,
+  sorteren en het filter eigen/andere.
+- Q: Hoe ziet de teller bij de beschrijving eruit? → A: "<aantal> tekens over"; bij 0 (ook als
+  de grens door plakken is bereikt of overschreden) wordt de teller rood. Meer tekens invoeren
+  kan niet; wat er bij plakken niet meer in past, wordt weggelaten met de melding "De
+  beschrijving mag maximaal 1000 tekens zijn; de rest is niet overgenomen." Dit geldt in het
+  uploadvenster en in het videovenster.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Beschikbaarheid kiezen bij het uploaden (Priority: P1)
@@ -100,8 +114,9 @@ naam van B toont en geen knoppen om te wijzigen of te verwijderen heeft.
 
 1. **Given** eigen video's en beschikbare video's van anderen, **When** de docent de
    bibliotheek opent, **Then** staan ze samen in één lijst, met per video thumbnail, naam,
-   beschrijving (ingekort), duur, grootte, uploaddatum en de eigenaar: "Eigen video" of
-   "Van <organisatienaam>".
+   beschrijving (ingekort), duur, grootte en uploaddatum. Video's van andere organisaties
+   hebben een opvallende pil in een eigen kleur met de naam van de eigenaar; eigen video's een
+   onopvallende, neutrale pil "Eigen".
 2. **Given** een video van een andere organisatie, **When** de docent de video bekijkt,
    **Then** zijn er geen knoppen om de naam, beschrijving of beschikbaarheid te wijzigen of om
    te verwijderen, en wordt elke poging om dat toch te doen geweigerd.
@@ -179,8 +194,10 @@ video zonder beschrijving geen lege regel of foutmelding toont.
 2. **Given** het uploadvenster, **When** de docent geen beschrijving invult, **Then** wordt de
    video zonder beschrijving opgeslagen.
 3. **Given** een beschrijving die langer is dan de maximale lengte, **When** de docent die
-   invult, **Then** ziet de docent hoeveel tekens er nog over zijn en kan er niet meer worden
-   ingevoerd dan het maximum.
+   typt of plakt, **Then** staat er "<aantal> tekens over", kan er niet meer worden ingevoerd
+   dan het maximum, wordt de teller rood bij "0 tekens over", en ziet de docent bij plakken de
+   melding dat de rest niet is overgenomen. Dit geldt in het uploadvenster en in het
+   videovenster.
 4. **Given** een beschrijving met meerdere regels, **When** de videogegevens worden getoond,
    **Then** blijven de regels behouden.
 
@@ -215,6 +232,13 @@ volgorde staan.
    docent "Geen video's gevonden" met een knop om de zoekterm en het filter te wissen.
 6. **Given** een bibliotheek met honderden video's, **When** de docent zoekt, sorteert of
    filtert, **Then** is het resultaat vrijwel direct zichtbaar (zie SC-005).
+7. **Given** video's van meerdere andere organisaties, **When** de docent op de pil
+   "Brandweer Academie Noord" bij een video klikt (in de lijst of in het videovenster),
+   **Then** staan alleen de video's van die organisatie in de lijst en staat naast het zoekveld
+   het label "Organisatie: Brandweer Academie Noord ✕".
+8. **Given** een actief organisatiefilter, **When** de docent ook een zoekterm, een sortering of
+   het filter eigen/andere kiest, **Then** gelden ze allemaal tegelijk; **When** de docent het
+   label wegklikt, **Then** vervalt alleen het organisatiefilter.
 
 ---
 
@@ -228,6 +252,10 @@ volgorde staan.
   lijst.
 - **Een gekozen organisatie wordt door de beheerder verwijderd**: ze kan niet meer inloggen, dus
   ziet ze de video niet meer. Ze verdwijnt uit de lijst met gekozen organisaties bij de video.
+  Blijft er bij een selectief beschikbare video geen actieve organisatie over, dan ziet alleen
+  de eigenaar de video nog; het videovenster toont "Selectief beschikbaar: geen organisaties
+  meer gekozen. Alleen jouw organisatie ziet deze video." De beschikbaarheid verandert niet
+  vanzelf.
 - **De eigenaar wordt door de beheerder verwijderd**: haar video's verdwijnen uit de
   bibliotheek van alle organisaties (feature 001, FR-014). Wat er gebeurt met cursussen die die
   video's al gebruiken, regelt de feature voor cursussen.
@@ -291,8 +319,11 @@ volgorde staan.
   voor die organisatie beschikbaar zijn: de eigen video's, alle video's met "Algemeen
   beschikbaar" van andere actieve organisaties, en video's met "Selectief beschikbaar" waarvoor
   de organisatie gekozen is.
-- **FR-009**: Bij elke video in de bibliotheek en in de videogegevens MUST de eigenaar zichtbaar
-  zijn: "Eigen video" voor de eigen organisatie, anders "Van <organisatienaam>".
+- **FR-009**: Bij elke video in de bibliotheek en in het videovenster MUST de eigenaar zichtbaar
+  zijn. Een video van een andere organisatie MUST een duidelijk zichtbare pil hebben met de
+  naam van die organisatie, in een kleur die alleen daarvoor wordt gebruikt en die los staat
+  van de huisstijl. Een eigen video MUST een onopvallende, neutrale pil "Eigen" hebben, zodat
+  het verschil in één oogopslag te zien is.
 - **FR-010**: Video's van een verwijderde organisatie MUST NOT meer in de bibliotheek van andere
   organisaties staan (feature 001, FR-014).
 - **FR-011**: Een organisatie MUST video's van anderen alleen kunnen bekijken (gegevens en
@@ -341,8 +372,12 @@ volgorde staan.
   maximaal 1000 tekens. Een langere beschrijving MUST geweigerd worden met de melding "De
   beschrijving mag maximaal 1000 tekens zijn." Een beschrijving met alleen spaties telt als geen
   beschrijving.
-- **FR-021**: Het uploadvenster MUST per video een optioneel veld "Beschrijving" hebben. Het veld
-  MUST tonen hoeveel tekens er nog over zijn en MUST niet meer tekens toestaan dan het maximum.
+- **FR-021**: Het uploadvenster MUST per video een optioneel veld "Beschrijving" hebben, en het
+  videovenster MUST bij wijzigen hetzelfde veld hebben. Onder het veld MUST de teller
+  "<aantal> tekens over" staan, geteld zoals de server telt. Bij 0 tekens over MUST de teller
+  rood zijn. Het veld MUST niet meer tekens toestaan dan het maximum; tekst die bij plakken niet
+  meer past, MUST worden weggelaten met de melding "De beschrijving mag maximaal 1000 tekens
+  zijn; de rest is niet overgenomen."
 - **FR-022**: De bibliotheek MUST de beschrijving ingekort tonen (de eerste regels); de
   videogegevens MUST de volledige beschrijving tonen. Een video zonder beschrijving MUST geen
   lege ruimte of placeholdertekst in de lijst tonen.
@@ -359,8 +394,13 @@ volgorde staan.
 - **FR-025a**: De bibliotheek MUST alle beschikbare video's in één lijst tonen, zonder pagina's
   en zonder steeds verder laden. Zoeken, sorteren en filteren MUST direct op die lijst werken,
   zonder de bibliotheek opnieuw te laden.
+- **FR-025b**: Klikken op de pil van een andere organisatie (in de lijst of in het videovenster)
+  MUST de bibliotheek filteren op die organisatie; vanuit het videovenster sluit het venster
+  daarbij. Het actieve filter MUST naast het zoekveld staan als label "Organisatie: <naam> ✕";
+  klikken op het label (of het kruisje) MUST alleen dat filter wissen. Het organisatiefilter
+  MUST samenwerken met zoeken, sorteren en het filter eigen/andere. De pil "Eigen" filtert niet.
 - **FR-026**: Levert zoeken of filteren niets op, dan MUST de bibliotheek "Geen video's gevonden"
-  tonen met een knop om zoekterm en filter te wissen.
+  tonen met een knop die zoekterm, het filter eigen/andere en het organisatiefilter wist.
 
 **Beheerder**
 

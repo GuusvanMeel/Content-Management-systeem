@@ -44,6 +44,42 @@ describe('uploads store: checks before uploading', () => {
     expect(options.metadata).toEqual({ filename: 'a.mp4', name: 'Mijn video' })
     expect(options.chunkSize).toBe(32 * 1024 * 1024)
   })
+
+  it('sends availability and description as metadata (specs/003 research R4)', async () => {
+    const store = useUploads()
+    await store.addFiles([
+      { file: fakeFile('a.mp4'), name: 'A', description: '  Regel 1\nRegel 2 ', visibility: 'selective', accessOrganisationIds: [4, 9] },
+      { file: fakeFile('b.mp4'), name: 'B', description: '', visibility: 'public', accessOrganisationIds: [4] },
+    ])
+    await flushPromises()
+    expect(instances[0].options.metadata).toEqual({
+      filename: 'a.mp4',
+      name: 'A',
+      visibility: 'selective',
+      description: 'Regel 1\nRegel 2',
+      accessOrganisationIds: '4,9',
+    })
+    instances[0].options.onSuccess(successPayload({ id: 1 }))
+    await flushPromises()
+    expect(instances[1].options.metadata).toEqual({ filename: 'b.mp4', name: 'B', visibility: 'public' })
+  })
+
+  it('shows the field message of a refused choice and does not retry', async () => {
+    const store = useUploads()
+    await store.addFiles([{ file: fakeFile('a.mp4'), name: 'A', visibility: 'selective', accessOrganisationIds: [4] }])
+    await flushPromises()
+    const error = tusError(400, {
+      error: {
+        code: 'validation_failed',
+        message: 'Controleer de ingevulde gegevens.',
+        fields: { accessOrganisationIds: 'Kies alleen organisaties uit de lijst.' },
+      },
+    })
+    expect(instances[0].options.onShouldRetry(error)).toBe(false)
+    instances[0].options.onError(error)
+    await flushPromises()
+    expect(store.items[0]).toMatchObject({ state: 'rejected', message: 'Kies alleen organisaties uit de lijst.' })
+  })
 })
 
 describe('uploads store: queue', () => {

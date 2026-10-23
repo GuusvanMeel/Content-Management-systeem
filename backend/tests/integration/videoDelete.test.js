@@ -55,3 +55,30 @@ describe('DELETE /api/organisation/videos/:id (FR-019, FR-020)', () => {
     expect((await asB.get('/api/organisation/videos')).body.videos.map((v) => v.id)).toEqual([ofB.id])
   })
 })
+
+describe('DELETE in the central library (specs/003 FR-014, FR-018, research R9)', () => {
+  it('refuses another organisation that can see the video with 403 not_owner', async () => {
+    const shared = await createVideoRow({ organisationId: b.id, name: 'Gedeeld', visibility: 'public' })
+    const response = await asA.delete(`/api/organisation/videos/${shared.id}`)
+    expect(response.status).toBe(403)
+    expect(response.body.error).toEqual({
+      code: 'not_owner',
+      message: 'Alleen de organisatie die deze video heeft geüpload, kan hem wijzigen of verwijderen.',
+    })
+    expect((await db('Video').where({ id: shared.id }).first()).deletedAt).toBeNull()
+  })
+
+  it('answers 404 for a selective video the organisation is not chosen for', async () => {
+    const c = await createOrganisationRow({ name: 'Zwembad C', loginCode: 'ZWEMBAD-C' })
+    const forC = await createVideoRow({ organisationId: b.id, visibility: 'selective', accessOrganisationIds: [c.id] })
+    expect((await asA.delete(`/api/organisation/videos/${forC.id}`)).status).toBe(404)
+  })
+
+  it('removes a shared video from every library when the owner deletes it', async () => {
+    const shared = await createVideoRow({ organisationId: a.id, visibility: 'public' })
+    const asB = (await agentWithSession({ organisationId: b.id })).agent
+    expect((await asB.get('/api/organisation/videos')).body.videos).toHaveLength(1)
+    expect((await asA.delete(`/api/organisation/videos/${shared.id}`)).status).toBe(204)
+    expect((await asB.get('/api/organisation/videos')).body.videos).toEqual([])
+  })
+})

@@ -1,6 +1,12 @@
 import { mkdir } from 'node:fs/promises'
 import { config } from '../../config/env.js'
 import { AppError, validationError } from '../../lib/errors.js'
+import {
+  normalizeDescription,
+  parseOrganisationIds,
+  validateAccessOrganisations,
+  validateVisibility,
+} from '../../lib/videoChoices.js'
 import { videoMessage } from '../../lib/videoMessages.js'
 import * as videoStorage from '../../lib/videoStorage.js'
 import { getOrganisationId } from '../../middleware/requireOrganisation.js'
@@ -27,6 +33,32 @@ export function parseMetadata(header) {
   return result
 }
 
+/**
+ * Availability and description from the metadata, checked before a single chunk is sent
+ * (specs/003 research R4). tus keeps the metadata with the upload, so nothing else is stored.
+ */
+async function checkChoices(metadata, ownerOrganisationId) {
+  const fields = {}
+  const collect = async (check) => {
+    try {
+      await check()
+    } catch (err) {
+      if (err.code !== 'validation_failed') throw err
+      Object.assign(fields, err.fields)
+    }
+  }
+  const visibility = metadata.visibility ?? config.VIDEO_DEFAULT_VISIBILITY
+  await collect(() => validateVisibility(visibility))
+  await collect(() => normalizeDescription(metadata.description))
+  if (visibility === 'selective') {
+    await collect(async () => {
+      const ids = parseOrganisationIds(metadata.accessOrganisationIds)
+      await validateAccessOrganisations(ids, ownerOrganisationId)
+    })
+  }
+  if (Object.keys(fields).length > 0) throw validationError(fields)
+}
+
 async function hasRoomFor(bytes) {
   return (await videoStorage.freeBytes()) - bytes >= config.VIDEO_MIN_FREE_SPACE_BYTES
 }
@@ -47,6 +79,7 @@ async function guardCreate(req) {
   if ((metadata.name ?? '').trim().length > NAME_MAX) {
     throw validationError({ name: 'De naam mag maximaal 255 tekens lang zijn.' })
   }
+  await checkChoices(metadata, getOrganisationId(req))
   if (!(await hasRoomFor(length))) throw insufficientStorage()
 
   // The owner always comes from the session; tusServer's onUploadCreate writes it into the

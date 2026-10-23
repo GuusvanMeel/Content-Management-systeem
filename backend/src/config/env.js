@@ -41,6 +41,17 @@ const GIB = 1024 ** 3
 const videoMaxSizeGb = positiveInteger('VIDEO_MAX_SIZE_GB', 10)
 const videoMinFreeSpaceGb = positiveInteger('VIDEO_MIN_FREE_SPACE_GB', 20)
 
+// Pre-selected availability in the upload dialog (specs/003 research R3). A typo must not stop the
+// API, so an invalid value falls back to the safest choice with a warning.
+const VISIBILITIES = ['public', 'selective', 'private']
+function defaultVisibility() {
+  const raw = env.VIDEO_DEFAULT_VISIBILITY
+  if (raw === undefined || raw === '') return 'private'
+  if (VISIBILITIES.includes(raw)) return raw
+  console.warn(`VIDEO_DEFAULT_VISIBILITY "${raw}" is invalid; using private`)
+  return 'private'
+}
+
 export const config = Object.freeze({
   NODE_ENV,
   DB_HOST: env.DB_HOST,
@@ -66,4 +77,7 @@ export const config = Object.freeze({
   // Maximum frame size in pixels; the browser reads the same values (FR-003a).
   VIDEO_MAX_WIDTH: positiveInteger('VIDEO_MAX_WIDTH', 5760),
   VIDEO_MAX_HEIGHT: positiveInteger('VIDEO_MAX_HEIGHT', 2880),
+  // Central library (specs/003).
+  VIDEO_DEFAULT_VISIBILITY: defaultVisibility(),
+  VIDEO_DESCRIPTION_MAX_LENGTH: 1000,
 })

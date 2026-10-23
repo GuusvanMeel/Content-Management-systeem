@@ -1,9 +1,11 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue'
+import { ui } from '../lib/ui'
 import Icon from './Icon.vue'
 defineProps({ title: String, width: { type: String, default: '520px' } })
 const emit = defineEmits(['close'])
-const onKey = (e) => e.key === 'Escape' && emit('close')
+// While a confirmation is open on top, Escape belongs to that confirmation.
+const onKey = (e) => e.key === 'Escape' && !ui.confirm && emit('close')
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>

@@ -29,6 +29,9 @@ describe('GET /api/organisation/videos', () => {
     expect(response.body.videos[0]).toEqual({
       id: newer.id,
       name: 'Nieuwer',
+      description: null,
+      owner: { id: a.id, name: 'Zwembad A', isOwn: true },
+      visibility: 'private',
       durationSeconds: 95,
       fileSizeBytes: 3221225472,
       uploadedAt: '2026-10-22T09:14:03.000Z',
@@ -83,6 +86,8 @@ describe('GET /api/organisation/videos/upload-settings', () => {
       chunkSizeBytes: 32 * 1024 * 1024,
       acceptedExtensions: ['.mp4'],
       uploadEndpoint: '/api/organisation/video-uploads',
+      defaultVisibility: config.VIDEO_DEFAULT_VISIBILITY,
+      descriptionMaxLength: 1000,
     })
   })
 })

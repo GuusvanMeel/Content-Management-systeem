@@ -14,7 +14,7 @@ export const app = createApp()
 
 /** Empties all tables (children first), the uploads directory and the videos directory. */
 export async function resetDatabase() {
-  for (const table of ['Video', 'AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
+  for (const table of ['VideoAccess', 'Video', 'AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
     await db(table).del()
   }
   await rm(config.UPLOADS_DIR, { recursive: true, force: true })
@@ -23,11 +23,15 @@ export async function resetDatabase() {
 
 /**
  * Inserts a verified video directly (without an upload), with a small JPEG thumbnail and a
- * placeholder video file on disk. `uploadedAt` can be set to control the order.
+ * placeholder video file on disk. `uploadedAt` can be set to control the order;
+ * `accessOrganisationIds` writes VideoAccess rows (for visibility 'selective').
  */
 export async function createVideoRow({
   organisationId,
   name = 'Testvideo',
+  description = null,
+  visibility = 'private',
+  accessOrganisationIds = [],
   durationSeconds = 95,
   fileSizeBytes = 3221225472,
   uploadedAt = new Date(),
@@ -42,14 +46,17 @@ export async function createVideoRow({
   const [id] = await db('Video').insert({
     ownerOrganisationId: organisationId,
     name,
-    description: null,
+    description,
     ...keys,
     fileSizeBytes,
     durationSeconds,
-    visibility: 'private',
+    visibility,
     uploadedAt,
     deletedAt,
   })
+  if (accessOrganisationIds.length > 0) {
+    await db('VideoAccess').insert(accessOrganisationIds.map((accessId) => ({ videoId: id, organisationId: accessId })))
+  }
   return { id, name, ...keys }
 }
 

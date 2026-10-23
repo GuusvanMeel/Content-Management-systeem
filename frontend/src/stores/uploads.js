@@ -16,15 +16,26 @@ export const TEXT = {
 }
 
 // Statuses for which retrying makes no sense: the answer will not change.
-const NO_RETRY = new Set([401, 403, 404, 413, 415, 422, 507])
+const NO_RETRY = new Set([400, 401, 403, 404, 413, 415, 422, 507])
 const RETRY_DELAYS = [0, 3000, 10000, 30000, 60000]
 // Rejections by the server that also get a centred message (FR-014).
-const SERVER_REJECTION = new Set([413, 415, 422, 507])
+const SERVER_REJECTION = new Set([400, 413, 415, 422, 507])
 
 const ACTIVE = new Set(['queued', 'uploading', 'retrying', 'verifying'])
 const REQUEST_HEADERS = { 'X-Requested-With': 'cms' }
 
 let nextId = 1
+
+/** tus metadata of an upload; empty choices are left out so the server's default applies. */
+export function uploadMetadata(file, item) {
+  const metadata = { filename: file.name, name: item.name }
+  if (item.visibility) metadata.visibility = item.visibility
+  if (item.description) metadata.description = item.description
+  if (item.visibility === 'selective' && item.accessOrganisationIds.length > 0) {
+    metadata.accessOrganisationIds = item.accessOrganisationIds.join(',')
+  }
+  return metadata
+}
 
 /** Status, code and message of a tus error, in the API error format where possible. */
 export function describeTusError(error) {
@@ -36,7 +47,9 @@ export function describeTusError(error) {
   } catch {
     body = null
   }
-  return { status, code: body?.error?.code, message: body?.error?.message }
+  // A refused choice (specs/003) names the field; its message says what to fix.
+  const fieldMessage = Object.values(body?.error?.fields ?? {})[0]
+  return { status, code: body?.error?.code, message: fieldMessage ?? body?.error?.message }
 }
 
 export const useUploads = defineStore('uploads', () => {
@@ -90,12 +103,16 @@ export const useUploads = defineStore('uploads', () => {
   async function addFiles(entries, { name } = {}) {
     const limits = await ensureSettings()
     const list = [...entries].map((entry) => (entry instanceof File ? { file: entry } : entry))
-    for (const { file, name: entryName } of list) {
+    for (const { file, name: entryName, description = '', visibility, accessOrganisationIds = [] } of list) {
       const chosenName = entryName ?? (list.length === 1 ? name : undefined)
       const item = {
         id: nextId++,
         name: chosenName?.trim() || file.name.replace(/\.mp4$/i, ''),
         fileName: file.name,
+        // Availability and description go with the upload (specs/003 research R4).
+        description: description.trim(),
+        visibility,
+        accessOrganisationIds: visibility === 'selective' ? accessOrganisationIds : [],
         bytesUploaded: 0,
         bytesTotal: file.size,
         state: 'queued',
@@ -139,7 +156,7 @@ export const useUploads = defineStore('uploads', () => {
       chunkSize: limits.chunkSizeBytes,
       retryDelays: RETRY_DELAYS,
       headers: REQUEST_HEADERS,
-      metadata: { filename: file.name, name: item.name },
+      metadata: uploadMetadata(file, item),
       removeFingerprintOnSuccess: true,
       onProgress(bytesSent, bytesTotal) {
         // All bytes sent: the server now checks the file before it answers (FR-013a).

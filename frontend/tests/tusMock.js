@@ -47,7 +47,14 @@ export const SETTINGS = {
   chunkSizeBytes: 32 * 1024 * 1024,
   acceptedExtensions: ['.mp4'],
   uploadEndpoint: '/api/organisation/video-uploads',
+  defaultVisibility: 'private',
+  descriptionMaxLength: 1000,
 }
+
+export const ORGANISATIONS = [
+  { id: 4, name: 'Brandweer Academie Noord' },
+  { id: 9, name: 'Zwembad B' },
+]
 
 /** A File-like object with an arbitrary size (no real bytes needed). */
 export function fakeFile(name, size = 1000) {
@@ -80,4 +87,7 @@ export const videosModule = () => ({
   getUploadSettings: vi.fn(async () => ({ ...SETTINGS })),
   listVideos: vi.fn(async () => []),
   deleteVideo: vi.fn(async () => null),
+  getVideo: vi.fn(async () => null),
+  updateVideo: vi.fn(async () => null),
+  listOtherOrganisations: vi.fn(async () => [...ORGANISATIONS]),
 })

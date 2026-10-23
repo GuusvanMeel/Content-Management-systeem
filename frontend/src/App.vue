@@ -12,7 +12,7 @@ import { ui, dismiss } from './lib/ui'
     </div>
   </div>
 
-  <div v-if="ui.confirm" class="backdrop" @mousedown.self="ui.confirm.resolve(false)">
+  <div v-if="ui.confirm" class="backdrop confirm-backdrop" @mousedown.self="ui.confirm.resolve(false)">
     <div class="modal" role="alertdialog" aria-modal="true" style="width: min(420px, 100%)">
       <div class="modal-head"><h2>{{ ui.confirm.title }}</h2></div>
       <div class="modal-body"><p class="muted">{{ ui.confirm.body }}</p></div>
@@ -27,6 +27,8 @@ import { ui, dismiss } from './lib/ui'
 </template>
 
 <style scoped>
+/* Above a window (Modal is teleported to <body>), so a confirmation from a window is visible. */
+.confirm-backdrop { z-index: 60; }
 .toasts {
   position: fixed;
   bottom: 20px;

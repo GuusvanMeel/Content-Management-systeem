@@ -1,10 +1,14 @@
 <script setup>
 // Upload dialog (contracts/ui.md, FR-005, FR-013): every chosen file is checked in the browser
 // before anything is sent. "Uploaden" stays off while a file is being checked or is invalid.
-import { computed, onMounted, reactive } from 'vue'
+// Per file also availability and description (specs/003 contracts/ui.md § Uploadvenster).
+import { computed, onMounted, reactive, ref } from 'vue'
+import { listOtherOrganisations } from '../api/videos'
 import { formatSize } from '../lib/format'
 import { checkVideo } from '../lib/videoCheck'
 import { createPreview } from '../lib/videoPreview'
+import AvailabilityPicker, { isAvailabilityValid } from './AvailabilityPicker.vue'
+import DescriptionField from './DescriptionField.vue'
 import Icon from './Icon.vue'
 import Modal from './Modal.vue'
 
@@ -20,12 +24,21 @@ const entries = reactive(
     key: nextKey++,
     file,
     name: file.name.replace(/\.mp4$/i, '').slice(0, 255),
+    description: '',
+    // The configured default is pre-selected; "selective" starts without organisations (FR-002).
+    availability: { visibility: props.settings.defaultVisibility ?? 'private', accessOrganisationIds: [] },
     check: { status: 'checking' },
     preview: null,
   })),
 )
 
+const descriptionMax = computed(() => props.settings.descriptionMaxLength ?? 1000)
+const organisations = ref([])
+
 onMounted(() => {
+  listOtherOrganisations()
+    .then((list) => (organisations.value = list))
+    .catch(() => (organisations.value = []))
   for (const entry of entries) {
     checkVideo(entry.file, props.settings)
       .then((result) => (entry.check = result))
@@ -37,7 +50,9 @@ onMounted(() => {
 })
 
 const canUpload = computed(
-  () => entries.length > 0 && entries.every((entry) => ['ok', 'unknown'].includes(entry.check.status)),
+  () =>
+    entries.length > 0 &&
+    entries.every((entry) => ['ok', 'unknown'].includes(entry.check.status) && isAvailabilityValid(entry.availability)),
 )
 
 function removeEntry(key) {
@@ -48,7 +63,16 @@ function removeEntry(key) {
 
 function submit() {
   if (!canUpload.value) return
-  emit('submit', entries.map((entry) => ({ file: entry.file, name: entry.name })))
+  emit(
+    'submit',
+    entries.map((entry) => ({
+      file: entry.file,
+      name: entry.name,
+      description: entry.description,
+      visibility: entry.availability.visibility,
+      accessOrganisationIds: entry.availability.visibility === 'selective' ? entry.availability.accessOrganisationIds : [],
+    })),
+  )
 }
 </script>
 
@@ -65,6 +89,10 @@ function submit() {
           <span class="muted small">{{ entry.file.name }} · {{ formatSize(entry.file.size) }}</span>
           <span v-if="entry.check.status === 'checking'" class="muted small" data-test="checking">Bestand wordt gecontroleerd…</span>
           <p v-else-if="entry.check.status === 'invalid'" class="problem" role="alert" data-test="problem">{{ entry.check.message }}</p>
+
+          <DescriptionField v-model="entry.description" class="spaced" :id="`video-description-${entry.key}`" :max="descriptionMax" />
+
+          <AvailabilityPicker v-model="entry.availability" class="spaced" :organisations="organisations" :id-prefix="`upload-${entry.key}`" />
         </div>
         <button type="button" class="icon-btn remove" :aria-label="`${entry.file.name} uit de lijst halen`" title="Uit de lijst halen" @click="removeEntry(entry.key)">
           <Icon name="x" :size="16" />
@@ -101,6 +129,7 @@ function submit() {
 .details { display: grid; gap: 4px; min-width: 0; }
 .label { font-size: 0.85rem; font-weight: 500; }
 .problem { margin: 4px 0 0; color: var(--err); font-weight: 500; font-size: 0.9rem; }
+.spaced { margin-top: 8px; }
 .remove { align-self: start; }
 @media (max-width: 560px) {
   .entry { grid-template-columns: 1fr auto; }
