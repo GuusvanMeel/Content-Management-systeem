@@ -260,7 +260,7 @@ geheel, en in de frontend de API, de omzetting en de editor op een lokale kopie
 - [X] T055 [P] Maak `backend/scripts/seed-courses.js` (`node scripts/seed-courses.js <loginCode> <courses> <stepsPerCourse>`, weigert met `NODE_ENV=production`, zoals `seed-videos.js`): cursussen met afwisselend video-onderdelen (met video's uit `visibleVideosQuery`) en vraag-onderdelen met 3 antwoorden; zonder zichtbare video's alleen vraag-onderdelen (quickstart.md § Prestatie)
 - [X] T056 [P] Controleer dat `backend/src/modules/videos/videoRepository.js`, `videoService.js` en `videoRoutes.js` niet zijn gewijzigd (`git diff --stat` op die bestanden is leeg) en dat alle tests van features 001–003 groen zijn
 - [X] T057 Draai `docker compose --profile test run --rm --build api-test` en `docker compose run --rm --build web-build npm test`; los fouten op tot alles groen is
-- [ ] T058 Voer de handmatige scenario's 1–23, de controles in § Thumbnail van een onbeschikbare video en § Ongeldige verzoeken, en de prestatiemeting uit [quickstart.md](quickstart.md) uit, en noteer afwijkingen
+- [X] T058 Voer de handmatige scenario's 1–23, de controles in § Thumbnail van een onbeschikbare video en § Ongeldige verzoeken, en de prestatiemeting uit [quickstart.md](quickstart.md) uit, en noteer afwijkingen
 - [X] T059 [P] Draai `npm run lint` in `backend/` en `frontend/`; controleer dat alle code, commentaar, routes en foutcodes Engels zijn en alle UI-teksten en `message`-velden Nederlands (constitution VI)
 
 ---
