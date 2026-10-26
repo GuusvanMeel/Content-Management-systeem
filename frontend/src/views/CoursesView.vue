@@ -1,55 +1,79 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+// The organisation's courses, all drafts (specs/004 contracts/ui.md § Cursussen).
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useApp } from '../stores/app'
-import { courseStatus } from '../lib/course'
+import { listCourses, createCourse, deleteCourse } from '../api/courses'
 import { timeAgo } from '../lib/util'
 import { confirmDialog, toast } from '../lib/ui'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import DescriptionField from '../components/DescriptionField.vue'
 
-const app = useApp()
 const router = useRouter()
+const courses = ref([])
+const loadState = ref('loading') // loading | ready | error
+
+async function load() {
+  loadState.value = 'loading'
+  try {
+    courses.value = await listCourses()
+    loadState.value = 'ready'
+  } catch {
+    loadState.value = 'error'
+  }
+}
+onMounted(load)
 
 const rows = computed(() =>
-  [...app.orgCourses]
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .map((c) => ({
-      c,
-      status: courseStatus(c),
-      todo: app.validation(c).issues.length,
-      videos: c.nodes.filter((n) => n.type === 'video').length,
-      questions: c.nodes.filter((n) => n.type === 'question').length,
-    })),
+  courses.value.map((c) => ({ c, updatedAt: new Date(c.updatedAt).getTime(), videos: c.videoStepCount, questions: c.questionStepCount })),
 )
 
+// Limits of FR-026, counted like the server (code points).
+const NAME_MAX = 255
+const DESCRIPTION_MAX = 1000
 const showNew = ref(false)
 const draft = ref({ name: '', description: '' })
 const tried = ref(false)
-const nameInput = ref(null)
+const serverErrors = ref({})
+const nameField = ref(null)
+const message = computed(() => {
+  if (!tried.value) return ''
+  if (!draft.value.name.trim() || !draft.value.description.trim()) return 'Vul een naam en een beschrijving in.'
+  return serverErrors.value.name ?? serverErrors.value.description ?? serverErrors.value.general ?? ''
+})
 function openNew() {
   draft.value = { name: '', description: '' }
   tried.value = false
+  serverErrors.value = {}
   showNew.value = true
-  nextTick(() => nameInput.value?.focus())
+  nextTick(() => nameField.value?.$el.querySelector('input')?.focus())
 }
-function create() {
+async function create() {
   tried.value = true
+  serverErrors.value = {}
   if (!draft.value.name.trim() || !draft.value.description.trim()) return
-  const c = app.createCourse({ name: draft.value.name.trim(), description: draft.value.description.trim() })
-  showNew.value = false
-  router.push('/courses/' + c.id)
+  try {
+    const c = await createCourse({ name: draft.value.name.trim(), description: draft.value.description.trim() })
+    showNew.value = false
+    router.push('/courses/' + c.id)
+  } catch (error) {
+    serverErrors.value = error.fields && Object.keys(error.fields).length ? error.fields : { general: error.message }
+  }
 }
 async function remove(c) {
   const ok = await confirmDialog({
     title: 'Cursus verwijderen?',
-    body: `“${c.name}” wordt definitief verwijderd${c.published ? ', ook van de headsets' : ''}.`,
+    body: `“${c.name}” wordt verwijderd.`,
     confirmLabel: 'Verwijderen',
     danger: true,
   })
-  if (ok) {
-    app.deleteCourse(c.id)
+  if (!ok) return
+  try {
+    await deleteCourse(c.id)
+    courses.value = courses.value.filter((x) => x.id !== c.id)
     toast('Cursus verwijderd')
+  } catch (error) {
+    toast(error.message)
   }
 }
 </script>
@@ -61,7 +85,12 @@ async function remove(c) {
       <button class="btn btn-primary" @click="openNew"><Icon name="plus" :size="15" />Nieuwe cursus</button>
     </div>
 
-    <div v-if="!rows.length" class="empty">
+    <p v-if="loadState === 'loading'" class="muted">Cursussen laden…</p>
+    <div v-else-if="loadState === 'error'" class="empty">
+      <p>De cursussen konden niet worden geladen.</p>
+      <button class="btn" @click="load">Opnieuw</button>
+    </div>
+    <div v-else-if="!rows.length" class="empty">
       <p>Er zijn nog geen cursussen.</p>
       <button class="btn" @click="openNew">Maak de eerste cursus</button>
     </div>
@@ -71,26 +100,37 @@ async function remove(c) {
         <RouterLink :to="'/courses/' + r.c.id" class="main">
           <span class="name">{{ r.c.name }}</span>
           <span class="meta">
-            {{ r.videos }} {{ r.videos === 1 ? 'video' : 'video’s' }} · {{ r.questions }} {{ r.questions === 1 ? 'vraag' : 'vragen' }} · bewerkt {{ timeAgo(r.c.updatedAt) }}
-            <span v-if="r.todo" class="todo"> · {{ r.todo }} te doen</span>
+            {{ r.videos }} {{ r.videos === 1 ? 'video' : 'video’s' }} · {{ r.questions }} {{ r.questions === 1 ? 'vraag' : 'vragen' }} · bewerkt {{ timeAgo(r.updatedAt) }}
           </span>
         </RouterLink>
-        <span class="status" :class="r.status.key">{{ r.status.label }}</span>
+        <span class="status draft">Concept</span>
         <button class="icon-btn" title="Verwijderen" @click="remove(r.c)"><Icon name="trash" :size="16" /></button>
       </li>
     </ul>
 
     <Modal v-if="showNew" title="Nieuwe cursus" @close="showNew = false">
       <form id="new-course" class="form" @submit.prevent="create">
-        <div class="field">
-          <label for="nc-name">Naam</label>
-          <input id="nc-name" ref="nameInput" v-model="draft.name" class="input" :class="{ invalid: tried && !draft.name.trim() }" />
-        </div>
-        <div class="field">
-          <label for="nc-desc">Beschrijving</label>
-          <textarea id="nc-desc" v-model="draft.description" class="textarea" rows="3" :class="{ invalid: tried && !draft.description.trim() }" />
-        </div>
-        <p v-if="tried && (!draft.name.trim() || !draft.description.trim())" class="hint err">Vul een naam en een beschrijving in.</p>
+        <DescriptionField
+          id="nc-name"
+          ref="nameField"
+          v-model="draft.name"
+          label="Naam"
+          subject="De naam"
+          test-id="course-name"
+          :max="NAME_MAX"
+          :optional="false"
+          :multiline="false"
+          :invalid="tried && (!draft.name.trim() || !!serverErrors.name)"
+        />
+        <DescriptionField
+          id="nc-desc"
+          v-model="draft.description"
+          test-id="course-description"
+          :max="DESCRIPTION_MAX"
+          :optional="false"
+          :invalid="tried && (!draft.description.trim() || !!serverErrors.description)"
+        />
+        <p v-if="message" class="hint err" data-test="create-error">{{ message }}</p>
       </form>
       <template #foot>
         <button class="btn btn-ghost" @click="showNew = false">Annuleren</button>
@@ -117,7 +157,6 @@ async function remove(c) {
 .main { flex: 1; min-width: 0; display: grid; gap: 2px; padding: 14px 20px; text-decoration: none; color: inherit; }
 .name { font-weight: 600; }
 .meta { font-size: 0.85rem; color: var(--muted); }
-.todo { color: var(--err); }
 .row .icon-btn { opacity: 0; }
 .row:hover .icon-btn,
 .row .icon-btn:focus-visible { opacity: 1; }

@@ -100,6 +100,7 @@ Een cursus die niet bestaat, verwijderd is of van een andere organisatie is, gee
   - "Er kan maar één startonderdeel zijn."
   - "De soort van een onderdeel kan niet veranderen."
   - "Dit onderdeel hoort niet bij deze cursus." (onbekend `id`)
+  - "Dit antwoord hoort niet bij dit onderdeel." (antwoord-`id` van een ander onderdeel of onbekend)
   - "Een video-onderdeel heeft geen vraag, antwoorden of feedback." / "Een vraag-onderdeel heeft
     geen video."
   - "Een cursus kan maximaal 200 onderdelen hebben."

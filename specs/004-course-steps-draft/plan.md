@@ -140,6 +140,7 @@ frontend/
 │   ├── data/seed.js                  # verwijderd
 │   ├── stores/app.js                 # verwijderd; editorVariant → lib/editorPreference.js
 │   ├── editor/
+│   │   ├── CourseEditor.vue          # nieuw: de editor op de geladen kopie (balk, opslaan, vertrekvraag)
 │   │   ├── context.js                # werkt op lokale kopie; opslaan, dirty, geen connect/disconnect;
 │   │   │                             #   stepVideos-kaart en confirmLosingVideo (R5b)
 │   │   ├── CanvasEditor.vue          # geen randen of verbindingshandles

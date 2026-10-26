@@ -14,7 +14,7 @@ export const app = createApp()
 
 /** Empties all tables (children first), the uploads directory and the videos directory. */
 export async function resetDatabase() {
-  for (const table of ['VideoAccess', 'Video', 'AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
+  for (const table of ['Answer', 'CourseStep', 'CourseVersion', 'OrganisationCourse', 'Course', 'VideoAccess', 'Video', 'AdminActionLog', 'OrganisationStyle', 'Session', 'Organisation', 'Administrator']) {
     await db(table).del()
   }
   await rm(config.UPLOADS_DIR, { recursive: true, force: true })
@@ -58,6 +58,69 @@ export async function createVideoRow({
     await db('VideoAccess').insert(accessOrganisationIds.map((accessId) => ({ videoId: id, organisationId: accessId })))
   }
   return { id, name, ...keys }
+}
+
+/** Takes a video away from every other organisation (visibility 'private', no VideoAccess rows). */
+export async function restrictVideo(videoId) {
+  await db('VideoAccess').where({ videoId }).del()
+  await db('Video').where({ id: videoId }).update({ visibility: 'private' })
+}
+
+/** Soft deletes a video, as its owner would (constitution V). */
+export function softDeleteVideo(videoId) {
+  return db('Video').where({ id: videoId }).update({ deletedAt: db.raw('UTC_TIMESTAMP()') })
+}
+
+/**
+ * Inserts a course directly: Course, OrganisationCourse (owner) and its draft CourseVersion 1
+ * (specs/004 research R1). Returns { courseId, versionId }.
+ */
+export async function createCourseRow({
+  organisationId,
+  name = 'Testcursus',
+  description = 'Een cursus om mee te testen.',
+  updatedAt = new Date(),
+  deletedAt = null,
+} = {}) {
+  const [courseId] = await db('Course').insert({ isSharedInLibrary: false, createdAt: updatedAt, updatedAt, deletedAt })
+  await db('OrganisationCourse').insert({ organisationId, courseId, isOwner: true, addedAt: updatedAt })
+  const [versionId] = await db('CourseVersion').insert({ courseId, versionNumber: 1, name, description, publishedAt: null })
+  return { courseId, versionId }
+}
+
+/**
+ * Inserts a step of a course version. A question step gets `answers` (default two, the first
+ * correct). Returns { id, answerIds }.
+ */
+export async function createStepRow({
+  versionId,
+  stepType = 'video',
+  videoId = null,
+  questionText = stepType === 'question' ? 'Wat doe je eerst?' : null,
+  feedback = null,
+  isStart = false,
+  positionX = 0,
+  positionY = 0,
+  answers = stepType === 'question'
+    ? [{ answerText: 'Alarmeren', isCorrect: true }, { answerText: 'Springen', isCorrect: false }]
+    : [],
+} = {}) {
+  const [id] = await db('CourseStep').insert({
+    courseVersionId: versionId,
+    stepType,
+    videoId,
+    questionText,
+    feedback,
+    isStart,
+    positionX,
+    positionY,
+  })
+  const answerIds = []
+  for (const [sortOrder, answer] of answers.entries()) {
+    const [answerId] = await db('Answer').insert({ courseStepId: id, sortOrder, ...answer })
+    answerIds.push(answerId)
+  }
+  return { id, answerIds }
 }
 
 export async function createAdmin(username = 'beheer', password = 'admin-password-123') {

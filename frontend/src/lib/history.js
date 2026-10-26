@@ -1,11 +1,15 @@
 import { ref, watch, computed } from 'vue'
+import { applyKeyChanges } from './courseMapping'
+
+/** The editable content of a course as JSON; canvas positions count as content (specs/004 FR-009). */
+export const snapCourse = (c) => JSON.stringify({ name: c.name, description: c.description, startId: c.startId, nodes: c.nodes })
 
 // Undo/redo for a course: snapshots of its editable content, grouped with a short debounce
-// so typing a sentence is one undo step.
+// so typing a sentence is one undo step. Only the editor's copy changes; nothing is saved until
+// "Opslaan als concept" (specs/004 FR-020a).
 export function useCourseHistory(getCourse) {
   const stack = ref([])
   const index = ref(-1)
-  const snap = (c) => JSON.stringify({ name: c.name, description: c.description, startId: c.startId, nodes: c.nodes })
   let timer = null
   let pending = null
 
@@ -17,15 +21,13 @@ export function useCourseHistory(getCourse) {
     stack.value.push(json)
     if (stack.value.length > 150) stack.value.shift()
     index.value = stack.value.length - 1
-    const c = getCourse()
-    if (c && stack.value.length > 1) c.updatedAt = Date.now()
   }
 
   const c0 = getCourse()
-  if (c0) commit(snap(c0))
+  if (c0) commit(snapCourse(c0))
 
   const stop = watch(
-    () => (getCourse() ? snap(getCourse()) : null),
+    () => (getCourse() ? snapCourse(getCourse()) : null),
     (json) => {
       if (json == null) return
       pending = json
@@ -60,8 +62,16 @@ export function useCourseHistory(getCourse) {
     index.value++
     apply(stack.value[index.value])
   }
+  /**
+   * After a save: replaces temporary keys by the new saved keys in every step of the history, so
+   * undo after saving refers to the saved steps (research R10). `changes` maps old → new key.
+   */
+  function replaceKeys(changes) {
+    flush()
+    stack.value = stack.value.map((json) => JSON.stringify(applyKeyChanges(JSON.parse(json), changes)))
+  }
   return {
-    undo, redo, stop,
+    undo, redo, stop, flush, replaceKeys,
     canUndo: computed(() => index.value > 0 || !!pending),
     canRedo: computed(() => index.value < stack.value.length - 1),
   }

@@ -10,6 +10,13 @@ const props = defineProps({
   max: { type: Number, default: 1000 },
   id: { type: String, required: true },
   rows: { type: Number, default: 3 },
+  // Also used for other counted texts, such as the name and description of a course (specs/004).
+  label: { type: String, default: 'Beschrijving' },
+  optional: { type: Boolean, default: true },
+  multiline: { type: Boolean, default: true },
+  invalid: { type: Boolean, default: false },
+  subject: { type: String, default: 'De beschrijving' },
+  testId: { type: String, default: 'description' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -30,21 +37,33 @@ function onInput(event) {
 
 <template>
   <div class="description-field">
-    <label class="label" :for="id">Beschrijving <span class="muted">(optioneel)</span></label>
+    <label class="label" :for="id">{{ label }} <span v-if="optional" class="muted">(optioneel)</span></label>
     <textarea
+      v-if="multiline"
       :id="id"
       class="input"
+      :class="{ invalid }"
       :rows="rows"
       :value="modelValue"
       :aria-describedby="`${id}-counter`"
-      data-test="description"
+      :data-test="testId"
       @input="onInput"
     ></textarea>
-    <span :id="`${id}-counter`" class="counter" :class="{ limit: atLimit }" aria-live="polite" data-test="description-counter">
+    <input
+      v-else
+      :id="id"
+      class="input"
+      :class="{ invalid }"
+      :value="modelValue"
+      :aria-describedby="`${id}-counter`"
+      :data-test="testId"
+      @input="onInput"
+    />
+    <span :id="`${id}-counter`" class="counter" :class="{ limit: atLimit }" aria-live="polite" :data-test="`${testId}-counter`">
       {{ counterText }}
     </span>
-    <span v-if="cutOff && atLimit" class="problem" role="alert" data-test="description-cut">
-      De beschrijving mag maximaal {{ max }} tekens zijn; de rest is niet overgenomen.
+    <span v-if="cutOff && atLimit" class="problem" role="alert" :data-test="`${testId}-cut`">
+      {{ subject }} mag maximaal {{ max }} tekens zijn; de rest is niet overgenomen.
     </span>
   </div>
 </template>

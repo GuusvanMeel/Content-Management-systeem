@@ -1,60 +1,64 @@
 <script setup>
-// Edit form for one part. Used in the dialog (Canvas) and in the side panel (Canvas + paneel).
+// Edit form for one step. Used in the dialog (Canvas) and in the side panel (Canvas + paneel).
+// Steps are not linked in this feature: no "Daarna" and no target per answer (FR-024).
 import { computed } from 'vue'
 import { useEditor } from './context'
-import { nodeLabel, addAnswer, removeAnswer, setCorrect } from '../lib/course'
+import { addAnswer, removeAnswer, setCorrect } from '../lib/course'
 import { LETTERS } from '../lib/util'
+import { limitCharacters } from '../lib/textLength'
 import Icon from '../components/Icon.vue'
+import DescriptionField from '../components/DescriptionField.vue'
 import VideoPicker from './VideoPicker.vue'
 
 const props = defineProps({ node: Object })
 const emit = defineEmits(['deleted'])
 const ed = useEditor()
 
-const issues = computed(() => ed.validation.byNode[props.node.id] ?? [])
-const bad = (field) => issues.value.some((i) => i.field === field)
 const isStart = computed(() => ed.course.startId === props.node.id)
 const idp = computed(() => 'f-' + props.node.id)
-const video = computed(() => ed.app.videosById[props.node.videoId])
 
-const targets = computed(() =>
-  ed.ordered
-    .filter((n) => n.id !== props.node.id || props.node.type === 'question')
-    .map((n) => ({ id: n.id, label: (n.type === 'question' ? 'Vraag: ' : '') + nodeLabel(n, ed.app.videosById) })),
-)
-function setTarget(handle, value) {
-  value ? ed.connect(props.node.id, handle, value) : ed.disconnect(props.node.id, handle)
+// Limits of FR-026, counted like the server (code points).
+const TEXT_MAX = 1000
+const ANSWER_MAX = 255
+
+/** The server's message for a field of this step after a failed save, if any. */
+const stepIndex = computed(() => ed.course.nodes.indexOf(ed.course.nodes.find((n) => n.id === props.node.id)))
+const errorAt = (field) => ed.fieldErrors[`steps.${stepIndex.value}.${field}`]
+
+function setAnswerText(answer, event) {
+  const limited = limitCharacters(event.target.value, ANSWER_MAX)
+  event.target.value = limited
+  answer.text = limited
 }
 </script>
 
 <template>
   <div class="form">
-    <template v-if="node.type === 'video'">
-      <div class="field">
-        <span class="label">Video</span>
-        <VideoPicker v-model="node.videoId" :invalid="bad('video')" :id-base="idp + '-video'" />
-      </div>
-      <div class="field">
-        <label :for="idp + '-title'">Titel</label>
-        <input :id="idp + '-title'" v-model="node.title" class="input" :placeholder="video?.name ?? 'Titel van dit onderdeel'" />
-      </div>
-      <div class="field">
-        <label :for="idp + '-next'">Daarna</label>
-        <select :id="idp + '-next'" class="select" :value="node.next ?? ''" @change="setTarget('next', $event.target.value)">
-          <option value="">Einde van de cursus</option>
-          <option v-for="t in targets" :key="t.id" :value="t.id">{{ t.label }}</option>
-        </select>
-      </div>
-    </template>
+    <div v-if="node.type === 'video'" class="field">
+      <span class="label">Video</span>
+      <VideoPicker v-model="node.videoId" :id-base="idp + '-video'" />
+      <p v-if="errorAt('videoId')" class="hint err">{{ errorAt('videoId') }}</p>
+      <!-- FR-020c: the step stays, without a video. -->
+      <button v-if="node.videoId" class="btn btn-sm btn-ghost remove-video" data-test="remove-video" @click="node.videoId = null">
+        Video weghalen
+      </button>
+    </div>
 
     <template v-else>
-      <div class="field">
-        <label :for="idp + '-q'">Vraag</label>
-        <textarea :id="idp + '-q'" v-model="node.question" class="textarea" rows="2" :class="{ invalid: bad('question') }" />
-      </div>
+      <DescriptionField
+        :id="idp + '-q'"
+        v-model="node.question"
+        label="Vraag"
+        subject="De vraag"
+        test-id="question"
+        :max="TEXT_MAX"
+        :optional="false"
+        :rows="2"
+        :invalid="!!errorAt('questionText')"
+      />
       <div class="field">
         <span class="label">Antwoorden</span>
-        <p class="hint">Vink het goede antwoord aan en kies waar elk antwoord heen gaat.</p>
+        <p class="hint">Vink het goede antwoord aan.</p>
         <div class="answers">
           <div v-for="(a, i) in node.answers" :key="a.id" class="answer">
             <input
@@ -66,30 +70,40 @@ function setTarget(handle, value) {
               :aria-label="`Antwoord ${LETTERS[i]} is goed`"
               @change="setCorrect(node, a.id)"
             />
-            <input :id="idp + '-a-' + a.id" v-model="a.text" class="input" :class="{ invalid: bad('answer:' + a.id) }" :placeholder="`Antwoord ${LETTERS[i]}`" />
+            <input
+              :id="idp + '-a-' + a.id"
+              :value="a.text"
+              class="input"
+              :class="{ invalid: !!errorAt(`answers.${i}.answerText`) }"
+              :placeholder="`Antwoord ${LETTERS[i]}`"
+              data-test="answer"
+              @input="setAnswerText(a, $event)"
+            />
             <button v-if="node.answers.length > 2" class="icon-btn" :aria-label="`Antwoord ${LETTERS[i]} verwijderen`" @click="removeAnswer(node, a.id)">
               <Icon name="x" :size="15" />
             </button>
-            <select
-              :id="idp + '-t-' + a.id"
-              class="select target"
-              :class="{ invalid: bad('target:' + a.id), unset: !a.target }"
-              :value="a.target ?? ''"
-              :aria-label="`Na antwoord ${LETTERS[i]}`"
-              @change="setTarget('a-' + a.id, $event.target.value)"
-            >
-              <option value="" disabled>Gaat naar…</option>
-              <option v-for="t in targets" :key="t.id" :value="t.id">→ {{ t.label }}</option>
-            </select>
           </div>
         </div>
-        <button v-if="node.answers.length < 4" class="btn btn-sm btn-ghost add" @click="addAnswer(node)"><Icon name="plus" :size="14" />Antwoord toevoegen</button>
+        <button v-if="node.answers.length < 4" class="btn btn-sm btn-ghost add" data-test="add-answer" @click="addAnswer(node)"><Icon name="plus" :size="14" />Antwoord toevoegen</button>
+        <p v-if="errorAt('answers')" class="hint err">{{ errorAt('answers') }}</p>
       </div>
+      <!-- FR-017: only question steps have feedback. -->
+      <DescriptionField
+        :id="idp + '-feedback'"
+        v-model="node.feedback"
+        label="Feedback"
+        subject="De feedback"
+        test-id="feedback"
+        :max="TEXT_MAX"
+        :rows="2"
+        :invalid="!!errorAt('feedback')"
+      />
+      <p class="hint feedback-hint">Wat de cursist na het antwoorden ziet.</p>
     </template>
 
     <div class="actions">
-      <span v-if="isStart" class="muted small">Dit is het startpunt</span>
-      <button v-else class="btn btn-sm" @click="ed.setStart(node.id)">Maak startpunt</button>
+      <span v-if="isStart" class="muted small">Dit is het startonderdeel</span>
+      <button v-else class="btn btn-sm" @click="ed.setStart(node.id)">Maak startonderdeel</button>
       <button class="btn btn-sm btn-danger" @click="ed.removeNode(node.id); emit('deleted')">Verwijderen</button>
     </div>
   </div>
@@ -105,9 +119,9 @@ function setTarget(handle, value) {
   align-items: center;
 }
 .radio { margin: 0; width: 16px; height: 16px; accent-color: var(--brand); }
-.target { grid-column: 2 / 3; min-height: 32px; padding: 4px 8px; font-size: 0.85rem; color: var(--muted); }
-.target.unset { color: var(--faint); }
 .add { justify-self: start; margin-left: -8px; }
+.remove-video { justify-self: start; margin-left: -8px; }
+.feedback-hint { margin-top: -12px; }
 .actions {
   display: flex;
   gap: 8px;

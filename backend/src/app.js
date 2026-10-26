@@ -8,6 +8,7 @@ import { requireOrganisation } from './middleware/requireOrganisation.js'
 import { session } from './middleware/session.js'
 import { actionLogRoutes } from './modules/actionLog/actionLogRoutes.js'
 import { authRoutes } from './modules/auth/authRoutes.js'
+import { courseRoutes } from './modules/courses/courseRoutes.js'
 import { organisationDirectoryRoutes } from './modules/organisationDirectory/organisationDirectoryRoutes.js'
 import { organisationSelfRoutes } from './modules/organisationSelf/organisationSelfRoutes.js'
 import { adminOrganisationRoutes } from './modules/organisations/adminOrganisationRoutes.js'
@@ -35,6 +36,9 @@ export function createApp() {
   // Outside the session middleware, so a health check never extends a session.
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
+  // A saved course draft can hold 200 steps with long texts (specs/004 research R8). Parsed here
+  // first; the general parser below then skips the already-read body.
+  app.use('/api/organisation/courses', express.json({ limit: '1mb' }))
   app.use('/api', express.json({ limit: '100kb' }), cookieParser(), csrf, session)
 
   app.use('/api/auth', authRoutes)
@@ -47,7 +51,7 @@ export function createApp() {
   // getOrganisationId(req), never from params, query or body (FR-022, research R8).
   // express.json only reads application/json, so tus chunks (application/offset+octet-stream)
   // reach the tus server untouched.
-  app.use('/api/organisation', requireOrganisation, organisationSelfRoutes, organisationDirectoryRoutes, styleRoutes, videoRoutes, videoUploadRoutes)
+  app.use('/api/organisation', requireOrganisation, organisationSelfRoutes, organisationDirectoryRoutes, styleRoutes, videoRoutes, videoUploadRoutes, courseRoutes)
 
   app.use('/api', notFoundHandler)
   app.use(errorHandler)

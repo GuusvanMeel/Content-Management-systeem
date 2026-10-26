@@ -1,162 +1,72 @@
-// Pure helpers for the course graph.
+// Pure helpers for a course draft in the editor (specs/004 research R9).
 //
-// Data model
-//   course = { id, orgId, name, description, startId, nodes: [...], published, publishedVersion, publishedSnapshot }
-//   video node    = { id, type: 'video', x, y, title, description, videoId, next }        next: nodeId | null  (null = end)
-//   question node = { id, type: 'question', x, y, question, answers: [{ id, text, correct, target }] }
-import dagre from '@dagrejs/dagre'
+// Data model (see lib/courseMapping.js for the conversion from and to the API)
+//   course        = { id, name, description, startId, nodes: [...] }
+//   video node    = { id, type: 'video', x, y, videoId }                       videoId: null = no video yet
+//   question node = { id, type: 'question', x, y, question, feedback, answers: [{ id, text, correct }] }
+// Order and branching between steps (FR-08) are not part of this feature: there are no links.
 import { uid, LETTERS } from './util'
 
 export const NODE_W = { video: 220, question: 240 }
+const NODE_H = { video: 180, questionBase: 80, perAnswer: 30 }
+const GAP = 60
 
 export function findNode(course, id) {
   return course.nodes.find((n) => n.id === id)
 }
 
-/** Outgoing links as [{ handle, target, answer? }] */
-export function outgoing(node) {
-  if (node.type === 'video') return node.next ? [{ handle: 'next', target: node.next }] : []
-  return node.answers.filter((a) => a.target).map((a) => ({ handle: 'a-' + a.id, target: a.target, answer: a }))
-}
-
-export function incoming(course, id) {
-  const res = []
-  for (const n of course.nodes) for (const o of outgoing(n)) if (o.target === id) res.push({ from: n, ...o })
-  return res
-}
-
-export const isEnd = (node) => node.type === 'video' && !node.next
-
-/** Breadth-first order from the start node; unreachable nodes are appended. */
+/** The start step first, then top to bottom and left to right on the canvas (research R9). */
 export function orderedNodes(course) {
-  const seen = new Set()
-  const order = []
-  const queue = course.startId ? [course.startId] : []
-  while (queue.length) {
-    const id = queue.shift()
-    if (seen.has(id)) continue
-    const n = findNode(course, id)
-    if (!n) continue
-    seen.add(id)
-    order.push(n)
-    for (const o of outgoing(n)) queue.push(o.target)
-  }
-  for (const n of course.nodes) if (!seen.has(n.id)) order.push(n)
-  return order
+  return [...course.nodes].sort((a, b) => {
+    if (a.id === course.startId) return -1
+    if (b.id === course.startId) return 1
+    return a.y - b.y || a.x - b.x
+  })
 }
 
-export function numbering(course) {
-  const map = {}
-  orderedNodes(course).forEach((n, i) => (map[n.id] = i + 1))
-  return map
-}
-
-export function nodeLabel(node, videosById = {}) {
+/** The name of a step: its video or its question (FR-017a). */
+export function nodeLabel(node, stepVideos = {}) {
   if (!node) return ''
-  if (node.type === 'video') return node.title || videosById[node.videoId]?.name || 'Nieuw onderdeel'
+  if (node.type === 'video') return (node.videoId && stepVideos[node.videoId]?.name) || 'Kies een video'
   return node.question || 'Nieuwe vraag'
 }
 
-export function newVideoNode(pos = { x: 0, y: 0 }, extra = {}) {
-  return { id: uid('n'), type: 'video', x: pos.x, y: pos.y, title: '', description: '', videoId: null, next: null, ...extra }
+export function newVideoNode(pos = { x: 0, y: 0 }) {
+  return { id: uid('n'), type: 'video', x: pos.x, y: pos.y, videoId: null }
 }
 
-export function newQuestionNode(pos = { x: 0, y: 0 }, extra = {}) {
+export function newQuestionNode(pos = { x: 0, y: 0 }) {
   return {
     id: uid('q'),
     type: 'question',
     x: pos.x,
     y: pos.y,
     question: '',
+    feedback: '',
     answers: [
-      { id: uid('a'), text: '', correct: true, target: null },
-      { id: uid('a'), text: '', correct: false, target: null },
+      { id: uid('a'), text: '', correct: true },
+      { id: uid('a'), text: '', correct: false },
     ],
-    ...extra,
   }
 }
 
-export function addNode(course, type, pos, extra) {
-  const node = type === 'video' ? newVideoNode(pos, extra) : newQuestionNode(pos, extra)
+/** Adds a step; the first step of an empty course becomes the start step (FR-018). */
+export function addNode(course, type, pos) {
+  const node = type === 'video' ? newVideoNode(pos) : newQuestionNode(pos)
+  if (!course.nodes.length) course.startId = node.id
   course.nodes.push(node)
-  if (!course.startId) course.startId = node.id
   return node
 }
 
-/** Position for a new node placed under `source` (spreads out when there are siblings). */
-export function positionBelow(course, source, handle) {
-  if (!source) return { x: 0, y: 0 }
-  let dx = 0
-  if (source.type === 'question') {
-    const i = source.answers.findIndex((a) => 'a-' + a.id === handle)
-    const n = source.answers.length
-    dx = (i - (n - 1) / 2) * 260
-  }
-  const h = source.type === 'question' ? 90 + source.answers.length * 30 : 190
-  let pos = { x: source.x + dx + (NODE_W[source.type] - NODE_W.video) / 2, y: source.y + h + 70 }
-  // nudge right while overlapping an existing node
-  for (let guard = 0; guard < 20; guard++) {
-    const hit = course.nodes.some((n) => Math.abs(n.x - pos.x) < 200 && Math.abs(n.y - pos.y) < 140)
-    if (!hit) break
-    pos = { x: pos.x + 250, y: pos.y }
-  }
-  return pos
-}
-
-export function connect(course, sourceId, handle, targetId) {
-  const src = findNode(course, sourceId)
-  if (!src || !findNode(course, targetId)) return false
-  if (src.type === 'video') {
-    if (targetId === sourceId) return false
-    src.next = targetId
-    return true
-  }
-  const a = src.answers.find((x) => 'a-' + x.id === handle)
-  if (!a) return false
-  a.target = targetId
-  return true
-}
-
-export function disconnect(course, sourceId, handle) {
-  const src = findNode(course, sourceId)
-  if (!src) return
-  if (src.type === 'video') src.next = null
-  else {
-    const a = src.answers.find((x) => 'a-' + x.id === handle)
-    if (a) a.target = null
-  }
-}
-
-/** Create a node and link it from (sourceId, handle) in one go.
- *  If that handle already pointed somewhere, the new node is inserted in between. */
-export function addLinkedNode(course, sourceId, handle, type, pos) {
-  const src = findNode(course, sourceId)
-  const previous = src
-    ? src.type === 'video'
-      ? src.next
-      : src.answers.find((a) => 'a-' + a.id === handle)?.target
-    : null
-  const node = addNode(course, type, pos ?? positionBelow(course, src, handle))
-  if (src) connect(course, sourceId, handle, node.id)
-  if (previous) {
-    if (node.type === 'video') node.next = previous
-    else node.answers[0].target = previous
-  }
-  return node
-}
-
+/** Removes a step; without it the course has no start step until another one is chosen. */
 export function deleteNode(course, id) {
   course.nodes = course.nodes.filter((n) => n.id !== id)
-  for (const n of course.nodes) {
-    if (n.type === 'video' && n.next === id) n.next = null
-    if (n.type === 'question') n.answers.forEach((a) => a.target === id && (a.target = null))
-  }
-  if (course.startId === id) course.startId = orderedNodes(course)[0]?.id ?? course.nodes[0]?.id ?? null
+  if (course.startId === id) course.startId = null
 }
 
 export function addAnswer(node) {
   if (node.answers.length >= 4) return
-  node.answers.push({ id: uid('a'), text: '', correct: false, target: null })
+  node.answers.push({ id: uid('a'), text: '', correct: false })
 }
 
 export function removeAnswer(node, answerId) {
@@ -172,40 +82,14 @@ export function setCorrect(node, answerId) {
 
 export const answerLetter = (node, answerId) => LETTERS[node.answers.findIndex((a) => a.id === answerId)] ?? '?'
 
-/** Tidy the canvas with dagre (top → bottom, like the storyboard). */
-export function autoLayout(course, dims = {}) {
-  const g = new dagre.graphlib.Graph()
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 64, marginx: 20, marginy: 20 })
-  g.setDefaultEdgeLabel(() => ({}))
-  for (const n of course.nodes) {
-    const d = dims[n.id] ?? { width: NODE_W[n.type], height: n.type === 'video' ? 180 : 80 + n.answers.length * 30 }
-    g.setNode(n.id, d)
+const nodeHeight = (n) => (n.type === 'video' ? NODE_H.video : NODE_H.questionBase + n.answers.length * NODE_H.perAnswer)
+
+/** "Canvas ordenen": the blocks in list order, in one column (research R9). */
+export function autoLayout(course) {
+  let y = 0
+  for (const n of orderedNodes(course)) {
+    n.x = Math.round((NODE_W.question - NODE_W[n.type]) / 2)
+    n.y = y
+    y += nodeHeight(n) + GAP
   }
-  for (const n of course.nodes) for (const o of outgoing(n)) if (o.target !== n.id) g.setEdge(n.id, o.target)
-  dagre.layout(g)
-  for (const n of course.nodes) {
-    const p = g.node(n.id)
-    n.x = Math.round(p.x - p.width / 2)
-    n.y = Math.round(p.y - p.height / 2)
-  }
-}
-
-/** The parts of a course that matter to the headset (positions excluded). */
-export function contentSnapshot(course) {
-  return JSON.stringify({
-    name: course.name,
-    description: course.description,
-    startId: course.startId,
-    nodes: course.nodes.map(({ x, y, ...rest }) => rest),
-  })
-}
-
-export function courseStatus(course) {
-  if (!course.published) return { key: 'draft', label: 'Concept' }
-  if (course.publishedSnapshot !== contentSnapshot(course)) return { key: 'changed', label: 'Gepubliceerd, niet alle wijzigingen' }
-  return { key: 'live', label: 'Gepubliceerd' }
-}
-
-export function usedVideoIds(course) {
-  return new Set(course.nodes.filter((n) => n.type === 'video' && n.videoId).map((n) => n.videoId))
 }
