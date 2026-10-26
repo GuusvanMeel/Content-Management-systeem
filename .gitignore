@@ -12,3 +12,6 @@ nginx/certs/
 # Software Ideas Modeler user state and Office lock files
 docs/*.simp.user
 docs/~$*
+# Playwright
+e2e/.env
+e2e/playwright/.auth
