@@ -28,10 +28,13 @@ const create = (who, body) => as[who].post('/api/organisation/courses').send(bod
 const list = async (who) => (await as[who].get('/api/organisation/courses')).body.courses
 
 describe('creating a course (FR-001, FR-002)', () => {
-  it('creates the course, its owner row and its draft, and returns the empty draft', async () => {
+  it('creates the course, its owner row and its draft with one start video step (FR-001a)', async () => {
     const response = await create('a', { name: '  Redding  ', description: ' Diep bad \r\n' })
     expect(response.status).toBe(201)
-    expect(response.body).toMatchObject({ name: 'Redding', description: 'Diep bad', status: 'draft', steps: [] })
+    expect(response.body).toMatchObject({ name: 'Redding', description: 'Diep bad', status: 'draft' })
+    expect(response.body.steps).toEqual([
+      { id: expect.any(Number), stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: null, video: null },
+    ])
     const id = response.body.id
     expect(await db('Course').where({ id }).first()).toMatchObject({ parentCourseId: null, isSharedInLibrary: 0, deletedAt: null })
     expect(await db('OrganisationCourse').where({ courseId: id })).toEqual([
@@ -68,8 +71,15 @@ describe('creating a course (FR-001, FR-002)', () => {
   })
 
   it('opens the new course right away', async () => {
-    const { id } = (await create('a', { name: 'X', description: 'Y' })).body
-    expect((await as.a.get(`/api/organisation/courses/${id}`)).body).toMatchObject({ id, name: 'X', steps: [] })
+    const created = (await create('a', { name: 'X', description: 'Y' })).body
+    const opened = (await as.a.get(`/api/organisation/courses/${created.id}`)).body
+    expect(opened).toMatchObject({ id: created.id, name: 'X' })
+    expect(opened.steps).toEqual(created.steps)
+  })
+
+  it('counts the start step in the list', async () => {
+    await create('a', { name: 'X', description: 'Y' })
+    expect(await list('a')).toEqual([expect.objectContaining({ name: 'X', videoStepCount: 1, questionStepCount: 0 })])
   })
 })
 

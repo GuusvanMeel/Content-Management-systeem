@@ -16,7 +16,9 @@ function toStepVideo(courseId, stepId, row, library) {
     id: row.id,
     name: row.name,
     durationSeconds: row.durationSeconds,
-    thumbnailUrl: row.thumbnailStorageKey ? `/api/organisation/courses/${courseId}/steps/${stepId}/video-thumbnail` : null,
+    thumbnailUrl: row.thumbnailStorageKey
+      ? `/api/organisation/courses/${courseId}/steps/${stepId}/videos/${row.id}/thumbnail`
+      : null,
     available: library.has(row.id),
   }
 }
@@ -103,9 +105,12 @@ async function checkVideos(steps, storedSteps, organisationId, trx) {
   if (Object.keys(fields).length > 0) throw validationError(fields)
 }
 
-/** The thumbnail of the video in a step of an own course (FR-016a); 404 for anything else. */
-export async function getStepVideoThumbnailKey(courseId, stepId, organisationId) {
-  const key = await repo.findStepVideoThumbnailKey(courseId, stepId, organisationId)
+/**
+ * The thumbnail of the video in a step of an own course (FR-016a), only while the step still has
+ * that video; 404 for anything else.
+ */
+export async function getStepVideoThumbnailKey(courseId, stepId, videoId, organisationId) {
+  const key = await repo.findStepVideoThumbnailKey(courseId, stepId, videoId, organisationId)
   if (!key) throw notFound()
   return key
 }

@@ -24,7 +24,7 @@ Een cursus die niet bestaat, verwijderd is of van een andere organisatie is, gee
       "positionX": 0, "positionY": 0,
       "videoId": 17,
       "video": { "id": 17, "name": "Zwembad overzicht", "durationSeconds": 95,
-                 "thumbnailUrl": "/api/organisation/courses/12/steps/101/video-thumbnail", "available": true }
+                 "thumbnailUrl": "/api/organisation/courses/12/steps/101/videos/17/thumbnail", "available": true }
     },
     {
       "id": 102, "stepType": "question", "isStart": false,
@@ -60,7 +60,9 @@ Een cursus die niet bestaat, verwijderd is of van een andere organisatie is, gee
 ## `POST /api/organisation/courses`
 
 - Body: `{ "name": string, "description": string }`.
-- `201`: het concept-document van de nieuwe cursus (`steps: []`).
+- `201`: het concept-document van de nieuwe cursus, met één video-onderdeel zonder video als
+  startonderdeel (FR-001a):
+  `"steps": [ { "id": 7, "stepType": "video", "isStart": true, "positionX": 0, "positionY": 0, "videoId": null, "video": null } ]`.
 - `400 validation_failed`, `fields.name` / `fields.description`: "Vul een naam en een
   beschrijving in." of "De naam mag maximaal 255 tekens lang zijn." / "De beschrijving mag
   maximaal 1000 tekens zijn."
@@ -112,15 +114,18 @@ Een cursus die niet bestaat, verwijderd is of van een andere organisatie is, gee
 
 - `204`: zacht verwijderd (FR-006).
 
-## `GET /api/organisation/courses/:id/steps/:stepId/video-thumbnail`
+## `GET /api/organisation/courses/:id/steps/:stepId/videos/:videoId/thumbnail`
 
 - Thumbnail van de video in een video-onderdeel van het concept van een eigen cursus, ook als
   die video niet meer beschikbaar is of door de eigenaar is verwijderd (FR-016a, research R5a).
 - `200`: `image/jpeg` via `X-Accel-Redirect` (in ontwikkeling en tests stuurt de API de bytes
   zelf, zoals bij de bibliotheekthumbnail); `Cache-Control: private, max-age=3600`.
+- `:videoId` MUST de video zijn die het onderdeel nu heeft. Daardoor krijgt een onderdeel na het
+  vervangen van zijn video een nieuwe URL, en toont de browser nooit een oude thumbnail uit zijn
+  cache (bevinding 2 van de handmatige test).
 - `404 not_found`: cursus niet zichtbaar voor de organisatie (andere organisatie, verwijderd,
   onbekend), onderdeel niet in het concept van deze cursus, vraag-onderdeel, onderdeel zonder
-  video, of video zonder thumbnail.
+  video, een `:videoId` die niet de video van het onderdeel is, of video zonder thumbnail.
 
 ## Ongewijzigd: videobibliotheek
 

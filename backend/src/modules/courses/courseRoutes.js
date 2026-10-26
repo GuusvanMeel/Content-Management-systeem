@@ -32,9 +32,16 @@ courseRoutes.get('/courses/:id', async (req, res) => {
 
 // Thumbnail of the video in a video step of an own course, also when that video is no longer in
 // the library (FR-016a, research R5a). Access check only; nginx delivers the bytes via
-// X-Accel-Redirect. The library's thumbnail route and its rule stay as they are.
-courseRoutes.get('/courses/:id/steps/:stepId/video-thumbnail', async (req, res) => {
-  const key = await service.getStepVideoThumbnailKey(courseId(req), idParam(req.params.stepId), getOrganisationId(req))
+// X-Accel-Redirect. The library's thumbnail route and its rule stay as they are. The video id is
+// part of the URL, so replacing the video gives a new URL and the browser cache never shows the
+// old thumbnail.
+courseRoutes.get('/courses/:id/steps/:stepId/videos/:videoId/thumbnail', async (req, res) => {
+  const key = await service.getStepVideoThumbnailKey(
+    courseId(req),
+    idParam(req.params.stepId),
+    idParam(req.params.videoId),
+    getOrganisationId(req),
+  )
   await sendStoredFile(res, key, { contentType: 'image/jpeg', cacheControl: 'private, max-age=3600' })
 })
 

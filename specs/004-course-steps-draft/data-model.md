@@ -101,8 +101,8 @@ Index (`courseStepId`, `sortOrder`).
 - **Tonen** (bij openen): `CourseStep.videoId` → `Video` zonder filter op `deletedAt` of
   zichtbaarheid, alleen voor onderdelen van een eigen cursus. Alleen `id`, `name`,
   `durationSeconds` en de thumbnail worden gebruikt; `available` = zit in de bibliotheekregel.
-- **Thumbnail**: eigen cursus (R2) → open versie → `CourseStep` met dat id, `stepType = 'video'`,
-  `videoId` niet NULL → `Video.thumbnailStorageKey` niet NULL. Anders `404`.
+- **Thumbnail**: eigen cursus (R2) → open versie → `CourseStep` met dat id, `stepType = 'video'`
+  en `videoId` gelijk aan de video in de URL → `Video.thumbnailStorageKey` niet NULL. Anders `404`.
 
 | Toestand van de video voor de organisatie | In bibliotheek/kiezer | In onderdeel getoond | Opnieuw kiesbaar | Waarschuwing bij weghalen |
 | --- | --- | --- | --- | --- |
@@ -119,7 +119,8 @@ Alle cursusroutes starten bij die query; anders `404 not_found`.
 ## Levenscyclus
 
 ```text
-(niet bestaand) --POST /courses--> concept --PUT /courses/:id--> concept (zelfde versie, nieuwe inhoud)
+(niet bestaand) --POST /courses--> concept met één start-video-onderdeel zonder video (FR-001a)
+concept --PUT /courses/:id--> concept (zelfde versie, nieuwe inhoud)
 concept --DELETE /courses/:id--> zacht verwijderd (deletedAt gezet; niet meer zichtbaar of te openen)
 ```
 

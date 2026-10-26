@@ -52,13 +52,18 @@ export function listOwnCourses(organisationId) {
     )
 }
 
-/** A new course: Course, its owner row and the draft (version 1), all at the database clock (research R1). */
+/**
+ * A new course: Course, its owner row and the draft (version 1), all at the database clock
+ * (research R1). The draft starts with one video step without a video, marked as the start step
+ * (specs/004 FR-001a).
+ */
 export async function insertCourse(trx, organisationId, { name, description }) {
   requireId(organisationId)
   const now = db.raw('UTC_TIMESTAMP()')
   const [courseId] = await trx('Course').insert({ isSharedInLibrary: false, createdAt: now, updatedAt: now })
   await trx('OrganisationCourse').insert({ organisationId, courseId, isOwner: true, addedAt: now })
-  await trx('CourseVersion').insert({ courseId, versionNumber: 1, name, description, publishedAt: null })
+  const [versionId] = await trx('CourseVersion').insert({ courseId, versionNumber: 1, name, description, publishedAt: null })
+  await trx('CourseStep').insert({ courseVersionId: versionId, stepType: 'video', isStart: true, videoId: null, positionX: 0, positionY: 0 })
   return courseId
 }
 
@@ -102,11 +107,11 @@ export async function stepVideos(versionId, trx = db) {
  * only place where a video outside the organisation's library is shown; the library rule itself
  * is not widened (specs/004 FR-016a, research R5a).
  */
-export async function findStepVideoThumbnailKey(courseId, stepId, organisationId) {
+export async function findStepVideoThumbnailKey(courseId, stepId, videoId, organisationId) {
   const row = await ownCoursesQuery(organisationId)
     .join('CourseStep as s', 's.courseVersionId', 'cv.id')
     .join('Video as v', 'v.id', 's.videoId')
-    .where({ 'c.id': courseId, 's.id': stepId, 's.stepType': 'video' })
+    .where({ 'c.id': courseId, 's.id': stepId, 's.stepType': 'video', 's.videoId': videoId })
     .first('v.thumbnailStorageKey')
   return row?.thumbnailStorageKey ?? undefined
 }

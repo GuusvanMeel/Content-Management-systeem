@@ -117,7 +117,7 @@ backend/
 │           ├── courseRepository.js   # ownCoursesQuery (R2), lijst, laden, opslaan, verwijderen
 │           ├── courseService.js      # aanmaken, opslaan in één transactie (R3), videocontrole (R5)
 │           └── courseRoutes.js       # GET/POST /courses, GET/PUT/DELETE /courses/:id,
-│                                     #   GET /courses/:id/steps/:stepId/video-thumbnail (R5a)
+│                                     #   GET /courses/:id/steps/:stepId/videos/:videoId/thumbnail (R5a)
 └── tests/
     ├── unit/courseDraft.test.js
     └── integration/
@@ -134,7 +134,8 @@ frontend/
 │   ├── lib/
 │   │   ├── courseMapping.js          # API-document ↔ editormodel (R9)
 │   │   ├── course.js                 # zonder koppelingen, titel en publicatiestatus
-│   │   ├── history.js                # snap volgens nieuw model; id's vervangen na opslaan (R10)
+│   │   ├── history.js                # snap volgens nieuw model; id's vervangen na opslaan (R10);
+│   │   │                             #   transform bij undo/redo voor FR-020d (R5b)
 │   │   ├── publishing.js             # verwijderd
 │   │   └── validate.js               # verwijderd
 │   ├── data/seed.js                  # verwijderd
@@ -142,6 +143,7 @@ frontend/
 │   ├── editor/
 │   │   ├── CourseEditor.vue          # nieuw: de editor op de geladen kopie (balk, opslaan, vertrekvraag)
 │   │   ├── context.js                # werkt op lokale kopie; opslaan, dirty, geen connect/disconnect;
+│   │   │                             #   savedVideos en lostVideoNotices (FR-020d);
 │   │   │                             #   stepVideos-kaart en confirmLosingVideo (R5b)
 │   │   ├── CanvasEditor.vue          # geen randen of verbindingshandles
 │   │   ├── NodeEditForm.vue          # geen Titel, Daarna of koppeling per antwoord; feedback bij vraag;

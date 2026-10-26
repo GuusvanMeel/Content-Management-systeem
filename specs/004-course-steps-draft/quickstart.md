@@ -43,9 +43,9 @@ Verwacht: alles groen, inclusief `courseIsolation.test.js` (SC-003, ook de thumb
 | --- | --- | --- |
 | 1 | Cursussen openen zonder cursussen | "Er zijn nog geen cursussen." (US1-4) |
 | 2 | Nieuwe cursus met lege naam → Aanmaken | Velden rood, "Vul een naam en een beschrijving in.", niets aangemaakt |
-| 3 | Nieuwe cursus met naam en beschrijving | Editor opent, label "Concept"; in de lijst "0 video's · 0 vragen" |
-| 4 | Video-onderdeel toevoegen, video kiezen | Kiezer toont precies: eigen video, B-algemeen, B-selectief; niet B-eigen of C-selectief (SC-005). Eerste onderdeel krijgt "Start" |
-| 5 | Tweede video-onderdeel zonder video, opslaan | Opgeslagen; blok toont "Kies een video" |
+| 3 | Nieuwe cursus met naam en beschrijving | Editor opent, label "Concept", met één videoblok "Kies een video" gemarkeerd als "Start" (FR-001a); in de lijst "1 video · 0 vragen" |
+| 4 | In het startonderdeel uit 3 een video kiezen | Kiezer toont precies: eigen video, B-algemeen, B-selectief; niet B-eigen of C-selectief (SC-005). Het onderdeel houdt "Start" |
+| 5 | Tweede video-onderdeel zonder video, opslaan | Opgeslagen; blok toont "Kies een video". Dat is bewust: een concept mag een video-onderdeel zonder video bevatten (FR-010, FR-012); de controle of een cursus volledig is, komt pas met publiceren (FR-09) |
 | 6 | Vraag-onderdeel toevoegen, 4 antwoorden, 3e goed, feedback invullen, één antwoord leeg laten, opslaan, pagina verversen | Alles staat er nog precies zo (SC-002); vijfde antwoord toevoegen kan niet |
 | 7 | Antwoord verwijderen tot er 2 over zijn; het goede antwoord verwijderen | Bij 2 geen verwijderknop meer; het eerste antwoord wordt goed |
 | 8 | Ander onderdeel als start markeren, opslaan, verversen | Alleen dat onderdeel heeft "Start" |
@@ -54,6 +54,7 @@ Verwacht: alles groen, inclusief `courseIsolation.test.js` (SC-003, ook de thumb
 | 11 | Iets wijzigen, pagina verversen | Vraag van de browser |
 | 12 | Netwerk uit (devtools offline), opslaan | "De cursus is niet opgeslagen. Probeer het opnieuw."; wijzigingen blijven; netwerk aan, opnieuw opslaan → geen dubbele onderdelen |
 | 13 | Dezelfde video in een tweede cursus gebruiken | Lukt (FR-015) |
+| 13a | In een opgeslagen video-onderdeel de video vervangen door een video met een andere thumbnail, opslaan, pagina verversen | Naam, duur én thumbnail zijn van de nieuwe video (bevinding 2: de thumbnail-URL bevat de video, dus de browsercache toont geen oude thumbnail) |
 | 14 | Als A: B-selectief in een onderdeel zetten en opslaan. Als B: die video "Alleen eigen organisatie" maken. Als A de cursus openen | Blok toont nog naam, thumbnail en duur; opslaan lukt; in Video's en in de kiezer staat de video niet meer (FR-016) |
 | 15 | Als B: het adres van de cursus van A openen | "Cursus niet gevonden" (SC-003) |
 | 16 | Cursus verwijderen in de lijst | Vraag "Cursus verwijderen?", daarna weg uit de lijst; adres geeft "Cursus niet gevonden" |
@@ -61,7 +62,8 @@ Verwacht: alles groen, inclusief `courseIsolation.test.js` (SC-003, ook de thumb
 | 18 | Na 14: het onderdeel verwijderen | Waarschuwing "Video niet meer beschikbaar"; Annuleren → onderdeel blijft (FR-020b) |
 | 19 | Na 14: in het onderdeel "Wijzig" → andere video kiezen, en apart "Video weghalen" | Beide eerst dezelfde waarschuwing; Annuleren laat de video staan; Doorgaan voert het uit |
 | 20 | Na 18 met Doorgaan: Ctrl+Z, opslaan | Onderdeel en video terug, opslaan lukt |
-| 21 | Na 18 met Doorgaan: opslaan, dan Ctrl+Z en opnieuw opslaan | Opslaan geweigerd met "Kies een video uit de bibliotheek." bij dat onderdeel |
+| 21 | Na 18 met Doorgaan: opslaan, dan Ctrl+Z en opnieuw opslaan | Het onderdeel komt terug met een leeg videoblok en de melding "Deze video is niet meer beschikbaar en kan niet worden teruggezet."; opslaan lukt, het onderdeel is daarna een video-onderdeel zonder video (FR-020d) |
+| 21a | Na 19 met Doorgaan (andere video gekozen): opslaan, dan Ctrl+Z | Het onderdeel houdt zijn plaats, maar het videoblok is leeg met dezelfde melding; Ctrl+Y zet de gekozen video terug |
 | 22 | Een onderdeel met een gewone video verwijderen of de video vervangen | Geen waarschuwing (SC-005b) |
 | 23 | Als B: video "Algemeen beschikbaar" zacht verwijderen terwijl A hem gebruikt; als A de cursus openen | Zoals 14: naam, thumbnail en duur staan er nog; niet meer in Video's of de kiezer |
 
@@ -87,10 +89,11 @@ fouten; verwacht steeds `400 validation_failed` en geen wijziging in de database
 
 ## Thumbnail van een onbeschikbare video (FR-016a, SC-005a)
 
-Na scenario 14, met `<c>` de cursus van A en `<s>` het onderdeel met de beperkte video:
+Na scenario 14, met `<c>` de cursus van A, `<s>` het onderdeel en `<v>` de beperkte video:
 
-- Als A: `GET /api/organisation/courses/<c>/steps/<s>/video-thumbnail` → `200`, een JPEG.
-- Als A: `GET /api/organisation/videos/<videoId>/thumbnail` → `404` (bibliotheek ongewijzigd).
+- Als A: `GET /api/organisation/courses/<c>/steps/<s>/videos/<v>/thumbnail` → `200`, een JPEG.
+- Als A, met een andere `<v>` dan de video van het onderdeel → `404`.
+- Als A: `GET /api/organisation/videos/<v>/thumbnail` → `404` (bibliotheek ongewijzigd).
 - Als B (eigenaar van de video): dezelfde cursusroute → `404`.
 - Als C: dezelfde cursusroute → `404`.
 - Als A, met het id van een vraag-onderdeel of van een onderdeel zonder video → `404`.

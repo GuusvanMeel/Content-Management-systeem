@@ -76,6 +76,19 @@ editor met de weergaven "Canvas", "Canvas + paneel" en "Lijst").
   die niet meer gekozen kunnen worden; voor gewone video's verandert niets. Ongedaan maken werkt
   zoals voorheen.
 
+### Session 2026-10-26 (bevindingen van de handmatige test)
+
+- Q: Waarmee begint een nieuwe cursus? → A: Niet met een leeg canvas, maar met één
+  video-onderdeel zonder video, gemarkeerd als startonderdeel, met "Kies een video" (FR-001a). Een
+  voorbeeld met een vraag die zich in twee video's splitst, hoort bij FR-08 en valt buiten deze
+  feature.
+- Q: Wat gebeurt er als de docent het weghalen van een onbeschikbare video heeft bevestigd en
+  opgeslagen, en daarna ongedaan maakt? → A: Het onderdeel komt terug, maar met een leeg
+  videoblok en de melding "Deze video is niet meer beschikbaar en kan niet worden teruggezet."
+  De volgende opslag wordt dus niet geweigerd (FR-020d).
+- Q: Mag een concept een video-onderdeel zonder video bevatten? → A: Ja, zoals FR-010 en FR-012
+  al zeggen; de controle op volledigheid komt met publiceren (FR-09).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Een cursus aanmaken en terugvinden (Priority: P1)
@@ -95,7 +108,9 @@ cursus is daar niet te zien.
 
 1. **Given** een ingelogde docent op "Cursussen", **When** de docent op "Nieuwe cursus" klikt,
    een naam en een beschrijving invult en op "Aanmaken" klikt, **Then** wordt de cursus bewaard
-   als concept van de eigen organisatie en opent de editor van die cursus.
+   als concept van de eigen organisatie en opent de editor van die cursus, met één
+   video-onderdeel zonder video dat als startonderdeel is gemarkeerd en "Kies een video" toont
+   (FR-001a).
 2. **Given** het venster "Nieuwe cursus", **When** de docent de naam of de beschrijving leeg
    laat en op "Aanmaken" klikt, **Then** wordt er niets aangemaakt, worden de lege velden rood en
    staat er "Vul een naam en een beschrijving in."
@@ -210,6 +225,8 @@ ververs de pagina: de startmarkering staat er nog en het verwijderde onderdeel i
    vervangt, **Then** verschijnt eerst de waarschuwing "Video niet meer beschikbaar" (FR-020b).
    Bij "Annuleren" verandert er niets; bij bevestigen gaat de actie door. Ongedaan maken zet het
    onderdeel en de video daarna gewoon terug, zolang de verwijdering nog niet is opgeslagen.
+   Is de verwijdering wel opgeslagen, dan zet ongedaan maken het onderdeel terug met een leeg
+   videoblok en de melding "Deze video is niet meer beschikbaar en kan niet worden teruggezet." (FR-020d).
 7. **Given** een video-onderdeel met een gewone, beschikbare video, **When** de docent het
    onderdeel verwijdert of de video vervangt, **Then** verschijnt er geen waarschuwing.
 
@@ -248,8 +265,9 @@ bestaat nog als zacht verwijderd record.
   zijn video; de editor toont hem gewoon met naam, thumbnail en duur, en opslaan blijft lukken.
   In de bibliotheek en de video-kiezer staat hij niet meer. Haalt de docent hem weg, dan volgt
   eerst een waarschuwing (FR-020b). Is de weghaling eenmaal opgeslagen, dan kan de video niet
-  meer terug: een onderdeel dat de docent daarna met ongedaan maken terugzet en opnieuw opslaat,
-  wordt geweigerd met "Kies een video uit de bibliotheek." bij dat onderdeel.
+  meer terug: zet de docent het onderdeel daarna met ongedaan maken terug, dan komt het terug met
+  een leeg videoblok en de melding "Deze video is niet meer beschikbaar en kan niet worden teruggezet." (FR-020d). Opslaan lukt daarna gewoon;
+  het onderdeel is dan een video-onderdeel zonder video.
 - **Thumbnail via een cursus van een ander**: Vraagt organisatie B de thumbnail op via een
   onderdeel van een cursus van A, dan krijgt B "niet gevonden", ook als B die video zelf in de
   bibliotheek ziet. Een onderdeel zonder video of een vraag-onderdeel heeft geen thumbnail.
@@ -293,6 +311,9 @@ bestaat nog als zacht verwijderd record.
 
 - **FR-001**: Een ingelogde docent MUST een cursus kunnen aanmaken met een naam en een
   beschrijving; beide zijn verplicht en mogen niet uit alleen spaties bestaan.
+- **FR-001a**: Een nieuwe cursus MUST beginnen met precies één video-onderdeel zonder video,
+  gemarkeerd als startonderdeel, zodat de editor niet leeg opent. De docent kan dat onderdeel
+  gewoon wijzigen of verwijderen.
 - **FR-002**: Elke cursus MUST bij precies één organisatie horen: de organisatie van de docent
   die hem aanmaakte (eigenaar).
 - **FR-003**: Een organisatie MUST alleen haar eigen cursussen kunnen zien, openen, wijzigen en
@@ -386,6 +407,12 @@ bestaat nog als zacht verwijderd record.
   maken MUST na de waarschuwing werken zoals bij elke andere wijziging.
 - **FR-020c**: In het bewerkformulier van een video-onderdeel MUST de docent de video ook
   kunnen weghalen zonder een andere te kiezen; het onderdeel blijft dan bestaan zonder video.
+- **FR-020d**: Brengt ongedaan maken (of opnieuw) een onbeschikbare video terug in een onderdeel
+  dat die video in de laatst opgeslagen versie niet meer heeft (het onderdeel of de video is
+  verwijderd of vervangen en dat is opgeslagen), dan MUST de editor dat onderdeel terugzetten
+  zonder video, met in het videoblok en het bewerkformulier de melding "Deze video is niet meer beschikbaar en kan niet worden teruggezet."
+  De volgende opslag MUST daardoor niet worden geweigerd. De melding verdwijnt zodra de docent
+  een video kiest. Is de weghaling nog niet opgeslagen, dan komt de video gewoon terug (FR-020b).
 - **FR-020a**: De editor MUST ongedaan maken en opnieuw bieden (knoppen en Ctrl+Z / Ctrl+Y of
   Ctrl+Shift+Z) voor alle wijzigingen in de editor: naam en beschrijving, onderdelen toevoegen,
   wijzigen en verwijderen, antwoorden, startmarkering en plaats op het canvas. Ongedaan maken

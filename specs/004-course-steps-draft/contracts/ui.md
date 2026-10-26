@@ -11,7 +11,8 @@ Wat hier niet staat, blijft zoals in het prototype. Alle teksten Nederlands.
 - Leeg: "Er zijn nog geen cursussen." met "Maak de eerste cursus".
 - "Nieuwe cursus": venster met Naam en Beschrijving (met tekenteller "<n> tekens over" zoals de
   videobeschrijving, max. 255 / 1000). Leeg → velden rood + "Vul een naam en een beschrijving
-  in."; "Aanmaken" maakt de cursus direct aan en opent de editor.
+  in."; "Aanmaken" maakt de cursus direct aan en opent de editor, met één videoblok "Kies een
+  video" dat als "Start" is gemarkeerd (FR-001a).
 - Verwijderen (prullenbak per rij): "Cursus verwijderen?" — "“<naam>” wordt verwijderd." —
   "Verwijderen" / "Annuleren"; daarna melding "Cursus verwijderd".
 
@@ -52,6 +53,10 @@ Wat hier niet staat, blijft zoals in het prototype. Alle teksten Nederlands.
   toevoegen." — "Doorgaan" (gevaarknop) / "Annuleren". Annuleren: niets verandert (kiezer
   sluit, onderdeel blijft). Doorgaan: de actie gaat door zoals normaal, met "Ongedaan maken" in
   de melding. Bij een beschikbare video verschijnt deze vraag nooit.
+- Ongedaan maken na een opgeslagen weghaling of vervanging van een onbeschikbare video (FR-020d):
+  het onderdeel komt terug met een leeg videoblok ("Kies een video") en de melding
+  "Deze video is niet meer beschikbaar en kan niet worden teruggezet." in het blok en in het bewerkformulier. Opslaan lukt gewoon. Kiest
+  de docent een video, dan verdwijnt de melding.
 - Lijst-weergave: alle onderdelen als platte lijst, startonderdeel eerst, dan van boven naar
   beneden op het canvas.
 - "Canvas ordenen": zet de blokken in de lijstvolgorde onder elkaar.

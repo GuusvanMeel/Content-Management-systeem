@@ -41,8 +41,8 @@ beforeEach(async () => {
 })
 
 const courseUrl = () => `/api/organisation/courses/${course.courseId}`
-const thumbnailUrl = (courseId = course.courseId, stepId = step.id) =>
-  `/api/organisation/courses/${courseId}/steps/${stepId}/video-thumbnail`
+const thumbnailUrl = (courseId = course.courseId, stepId = step.id, videoId = video.id) =>
+  `/api/organisation/courses/${courseId}/steps/${stepId}/videos/${videoId}/thumbnail`
 const savedStep = (extra = {}) => ({ id: step.id, stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: video.id, ...extra })
 const save = (steps) => as.a.put(courseUrl()).send({ name: 'Cursus', description: 'D', steps })
 
@@ -143,6 +143,12 @@ describe('the course thumbnail route', () => {
     expect((await as.a.get(thumbnailUrl(course.courseId, otherStep.id))).status).toBe(404)
     expect((await as.a.get(thumbnailUrl(course.courseId, 999999))).status).toBe(404)
     expect((await as.a.get(thumbnailUrl(course.courseId, 'abc'))).status).toBe(404)
+  })
+
+  it('gives 404 when the video in the URL is not the video of the step', async () => {
+    const other = await createVideoRow({ organisationId: a.id })
+    expect((await as.a.get(thumbnailUrl(course.courseId, step.id, other.id))).status).toBe(404)
+    expect((await as.a.get(thumbnailUrl(course.courseId, step.id, 'abc'))).status).toBe(404)
   })
 
   it('gives 404 for a video without a thumbnail, with thumbnailUrl null in the draft', async () => {

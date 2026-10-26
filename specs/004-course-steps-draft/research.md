@@ -10,7 +10,9 @@ legt de ontwerpkeuzes vast.
 `updatedAt`, `deletedAt` NULL, `parentCourseId` NULL, `isSharedInLibrary` false),
 `OrganisationCourse` (`isOwner` true, `addedAt` nu) en `CourseVersion` met `versionNumber` 1 en
 `publishedAt` NULL. Die open versie is het concept; naam en beschrijving staan daarin. Onderdelen
-(`CourseStep`) horen bij de versie, niet bij de cursus.
+(`CourseStep`) horen bij de versie, niet bij de cursus. In dezelfde transactie krijgt het concept
+één `CourseStep` van soort `video` met `videoId` NULL en `isStart` true op (0, 0), zodat de editor
+niet leeg opent (FR-001a).
 
 **Motivatie**: Volgt het ERD letterlijk (constitution, "Bronnen en domeinregels"). Door het
 concept nu al als versie op te slaan, hoeven publiceren (FR-09) en versies (FR-11) later alleen
@@ -119,12 +121,18 @@ Verder wordt niets van de video meegegeven: geen eigenaar, beschrijving, beschik
 bestandsgegevens.
 
 De thumbnail van elk video-onderdeel loopt via een cursusroute:
-`GET /api/organisation/courses/:courseId/steps/:stepId/video-thumbnail`. De route zoekt het
-onderdeel via `ownCoursesQuery` (R2) → open versie → onderdeel met dat id en `stepType = 'video'`
-en een `videoId`, en stuurt dan `Video.thumbnailStorageKey` via `sendStoredFile`
+`GET /api/organisation/courses/:courseId/steps/:stepId/videos/:videoId/thumbnail`. De route zoekt het
+onderdeel via `ownCoursesQuery` (R2) → open versie → onderdeel met dat id, `stepType = 'video'`
+en precies die `videoId`, en stuurt dan `Video.thumbnailStorageKey` via `sendStoredFile`
 (`X-Accel-Redirect`, constitution III). Alles daarbuiten is `404 not_found`: andere organisatie,
 verwijderde cursus, onbekend of verwijderd onderdeel, vraag-onderdeel, onderdeel zonder video,
 video zonder thumbnail. De bibliotheekroute `/videos/:id/thumbnail` blijft precies zoals hij is.
+
+De `videoId` staat in het pad omdat de route gecachet mag worden (`private, max-age=3600`): met
+alleen het onderdeel-id bleef na het vervangen van de video de oude thumbnail uit de cache in
+beeld (bevinding 2 van de handmatige test). Met de video in het pad hoort bij elke video een
+eigen URL; `no-cache` was het alternatief, maar dan haalt de editor bij elk openen alle
+thumbnails opnieuw op.
 
 De route geldt voor álle video-onderdelen, beschikbaar of niet, zodat de editor één regel heeft.
 Een net gekozen, nog niet opgeslagen video heeft nog geen onderdeel-id; de editor toont dan de
@@ -160,6 +168,19 @@ ongedaan maken en de vergelijking "niet-opgeslagen wijzigingen" alleen over de i
 
 **Alternatieven**: De beschikbaarheid in het knooppunt zelf opslaan: komt dan in de geschiedenis
 en in de vergelijking terecht, wat niets toevoegt.
+
+**Ongedaan maken na een opgeslagen weghaling (FR-020d, bevinding 3 van de handmatige test)**: de
+editor houdt naast `savedKeys` ook `savedVideos` bij: opgeslagen onderdeel-sleutel → `videoId`
+uit het laatst opgeslagen document. `useCourseHistory` krijgt een `transform` die bij ongedaan
+maken en opnieuw de stap opschoont vóór hij wordt toegepast: elk video-onderdeel met een video
+waarvoor `stepVideos[videoId].available === false` en waarvoor `savedVideos.get(node.id) !==
+node.videoId`, krijgt `videoId: null`, en zijn sleutel komt in de (niet-opgeslagen, niet in de
+geschiedenis) set `lostVideoNotices`. De opgeschoonde stap vervangt die stap in de geschiedenis,
+zodat er geen extra stap bijkomt en opnieuw blijft werken. `VideoNode.vue` en `NodeEditForm.vue`
+tonen bij een sleutel in die set "Deze video is niet meer beschikbaar en kan niet worden teruggezet."; kiezen van een video haalt de sleutel uit de set.
+De server houdt zijn regel (R5) als vangnet; de editor stuurt zo'n video alleen nooit meer mee.
+Eerder plan (vervangen): de volgende opslag liet de server weigeren met "Kies een video uit de
+bibliotheek.", wat voor de docent onduidelijk was.
 
 ## R6. Cursuslijst
 
@@ -230,7 +251,8 @@ het nieuwe model (zonder `next`/`target`). Na opslaan vervangt de editor de tijd
 door de nieuwe id's, in de huidige toestand én in alle stappen van de geschiedenis. Zet de docent
 daarna een onderdeel terug dat inmiddels verwijderd en opgeslagen is, dan heeft het een id dat
 niet meer bestaat; de editor maakt zo'n id bij de volgende opslag weer tijdelijk, zodat het
-onderdeel opnieuw wordt aangemaakt in plaats van een fout te geven.
+onderdeel opnieuw wordt aangemaakt in plaats van een fout te geven. Had dat onderdeel een
+onbeschikbare video, dan komt het terug zonder video (R5b, FR-020d).
 
 Verlaten met wijzigingen: `onBeforeRouteLeave` in `EditorView` vraagt met `confirmDialog`
 "Wijzigingen niet opgeslagen" ("Je wijzigingen gaan verloren." / "Verlaten" / "Annuleren");
@@ -261,7 +283,7 @@ wijzigingen gaan verloren, zoals de spec zegt.
     onderdeel geeft `400` "Kies een video uit de bibliotheek.";
   - de video staat niet in `GET /videos`, en `GET /videos/:id` en `/videos/:id/thumbnail` geven
     `404` (bibliotheek ongewijzigd);
-  - `GET /courses/:id/steps/:stepId/video-thumbnail` geeft `200` met het thumbnailbestand voor
+  - `GET /courses/:id/steps/:stepId/videos/:videoId/thumbnail` geeft `200` met het thumbnailbestand voor
     zowel een beschikbare als een onbeschikbare en een verwijderde video;
   - dezelfde thumbnailroute geeft `404` voor organisatie B (ook als B de video zelf mag zien), na
     het zacht verwijderen van de cursus, voor een vraag-onderdeel, een onderdeel zonder video, een

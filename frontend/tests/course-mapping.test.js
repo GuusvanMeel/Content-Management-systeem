@@ -17,7 +17,7 @@ const doc = {
       positionX: 0,
       positionY: 0,
       videoId: 17,
-      video: { id: 17, name: 'Zwembad', durationSeconds: 95, thumbnailUrl: '/api/organisation/courses/12/steps/101/video-thumbnail', available: false },
+      video: { id: 17, name: 'Zwembad', durationSeconds: 95, thumbnailUrl: '/api/organisation/courses/12/steps/101/videos/17/thumbnail', available: false },
     },
     { id: 102, stepType: 'video', isStart: false, positionX: 300, positionY: 0, videoId: null, video: null },
     {
@@ -65,7 +65,7 @@ describe('toEditor', () => {
 
   it('keeps video details apart, also for a video that is no longer available', () => {
     expect(toEditor(doc).stepVideos).toEqual({
-      17: { name: 'Zwembad', durationSeconds: 95, thumbnailUrl: '/api/organisation/courses/12/steps/101/video-thumbnail', available: false },
+      17: { name: 'Zwembad', durationSeconds: 95, thumbnailUrl: '/api/organisation/courses/12/steps/101/videos/17/thumbnail', available: false },
     })
   })
 

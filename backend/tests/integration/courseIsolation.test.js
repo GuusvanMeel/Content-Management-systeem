@@ -18,6 +18,7 @@ let b
 let as
 let course
 let videoStepId
+let videoId
 
 beforeEach(async () => {
   await resetDatabase()
@@ -30,6 +31,7 @@ beforeEach(async () => {
   course = await createCourseRow({ organisationId: a.id, name: 'Cursus van A' })
   // A public video, so B could see the video itself in the library.
   const video = await createVideoRow({ organisationId: a.id, visibility: 'public' })
+  videoId = video.id
   videoStepId = (await createStepRow({ versionId: course.versionId, videoId: video.id, isStart: true })).id
 })
 
@@ -49,7 +51,7 @@ describe('another organisation', () => {
       await as.b.get(base),
       await as.b.put(base).send(payload),
       await as.b.delete(base),
-      await as.b.get(`${base}/steps/${videoStepId}/video-thumbnail`),
+      await as.b.get(`${base}/steps/${videoStepId}/videos/${videoId}/thumbnail`),
     ]
     for (const response of responses) {
       expect(response.status).toBe(404)
