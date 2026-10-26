@@ -51,6 +51,13 @@ export function savedKeys(doc) {
   return keys
 }
 
+/** The video of every saved video step, by editor key (specs/004 FR-020d, research R5b). */
+export function savedVideos(doc) {
+  const videos = new Map()
+  for (const step of doc.steps) if (step.stepType === 'video') videos.set(stepKey(step.id), step.videoId)
+  return videos
+}
+
 /**
  * Maps the editor keys of `course`, as it was sent with `saved` as the known keys, to the keys
  * of the returned draft `doc` (research R10). Known steps keep their key. New steps were

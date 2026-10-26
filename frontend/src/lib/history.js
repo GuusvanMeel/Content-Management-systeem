@@ -42,6 +42,17 @@ export function useCourseHistory(getCourse) {
       commit(pending)
     }
   }
+  // Optional clean-up of a snapshot before undo/redo applies it (specs/004 FR-020d). The cleaned
+  // snapshot replaces the stored one, so no extra step is added and redo keeps working.
+  let transform = null
+  const restore = (i) => {
+    let json = stack.value[i]
+    if (transform) {
+      json = JSON.stringify(transform(JSON.parse(json)))
+      stack.value[i] = json
+    }
+    apply(json)
+  }
   const apply = (json) => {
     const d = JSON.parse(json)
     const c = getCourse()
@@ -54,13 +65,13 @@ export function useCourseHistory(getCourse) {
     flush()
     if (index.value <= 0) return
     index.value--
-    apply(stack.value[index.value])
+    restore(index.value)
   }
   function redo() {
     flush()
     if (index.value >= stack.value.length - 1) return
     index.value++
-    apply(stack.value[index.value])
+    restore(index.value)
   }
   /**
    * After a save: replaces temporary keys by the new saved keys in every step of the history, so
@@ -72,6 +83,7 @@ export function useCourseHistory(getCourse) {
   }
   return {
     undo, redo, stop, flush, replaceKeys,
+    setTransform: (fn) => (transform = fn),
     canUndo: computed(() => index.value > 0 || !!pending),
     canRedo: computed(() => index.value < stack.value.length - 1),
   }

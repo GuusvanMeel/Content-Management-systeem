@@ -209,15 +209,15 @@ geheel, en in de frontend de API, de omzetting en de editor op een lokale kopie
 
 ### Tests for User Story 4
 
-- [ ] T046 [P] [US4] Schrijf `frontend/tests/unavailable-video-warning.test.js` (FR-020b, FR-020d, SC-005b), ook met: na bevestigen en een gesimuleerde opslag zonder dat onderdeel zet ongedaan maken het onderdeel terug met `videoId: null` en de sleutel in `lostVideoNotices`, het blok toont "Deze video is niet meer beschikbaar en kan niet worden teruggezet.", de payload van de volgende opslag bevat die `videoId` niet, opnieuw (Ctrl+Y) werkt nog, en kiezen van een video haalt de melding weg; hetzelfde na het vervangen van de video en opslaan; zonder opslag tussendoor komt de video wél terug. Verder: met `stepVideos[v].available === false` vraagt de editor `confirmDialog` met titel "Video niet meer beschikbaar" vóór (a) het onderdeel verwijderen, (b) "Video weghalen", (c) een andere video kiezen; "Annuleren" laat onderdeel en `videoId` ongewijzigd en `dirty` false; "Doorgaan" voert de actie uit; daarna zet ongedaan maken onderdeel en video terug; met `available: true` wordt `confirmDialog` bij geen van de drie acties aangeroepen
-- [ ] T047 [P] [US4] Voeg aan `frontend/tests/course-dirty.test.js` toe: een onderdeel als start markeren maakt het vorige niet-start; het startonderdeel verwijderen laat `startId` `null`; verwijderen toont de melding "Onderdeel verwijderd" met "Ongedaan maken" en zonder vraag
+- [X] T046 [P] [US4] Schrijf `frontend/tests/unavailable-video-warning.test.js` (FR-020b, FR-020d, SC-005b), ook met: na bevestigen en een gesimuleerde opslag zonder dat onderdeel zet ongedaan maken het onderdeel terug met `videoId: null` en de sleutel in `lostVideoNotices`, het blok toont "Deze video is niet meer beschikbaar en kan niet worden teruggezet.", de payload van de volgende opslag bevat die `videoId` niet, opnieuw (Ctrl+Y) werkt nog, en kiezen van een video haalt de melding weg; hetzelfde na het vervangen van de video en opslaan; zonder opslag tussendoor komt de video wél terug. Verder: met `stepVideos[v].available === false` vraagt de editor `confirmDialog` met titel "Video niet meer beschikbaar" vóór (a) het onderdeel verwijderen, (b) "Video weghalen", (c) een andere video kiezen; "Annuleren" laat onderdeel en `videoId` ongewijzigd en `dirty` false; "Doorgaan" voert de actie uit; daarna zet ongedaan maken onderdeel en video terug; met `available: true` wordt `confirmDialog` bij geen van de drie acties aangeroepen
+- [X] T047 [P] [US4] Voeg aan `frontend/tests/course-dirty.test.js` toe: een onderdeel als start markeren maakt het vorige niet-start; het startonderdeel verwijderen laat `startId` `null`; verwijderen toont de melding "Onderdeel verwijderd" met "Ongedaan maken" en zonder vraag
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Voeg in `frontend/src/editor/context.js` `confirmLosingVideo(node)` toe: geeft direct `true` als `node.type !== 'video'`, er geen `videoId` is of `stepVideos[videoId]?.available !== false`; anders `confirmDialog({ title: 'Video niet meer beschikbaar', body: 'Deze video is niet meer beschikbaar voor jouw organisatie (privé gemaakt of verwijderd). Haal je hem uit de cursus, dan kun je hem daarna niet opnieuw toevoegen.', confirmLabel: 'Doorgaan', danger: true })`; maak `removeNode` async en laat het eerst `confirmLosingVideo` aanroepen; daarna als voorheen (zonder vraag, toast "Onderdeel verwijderd" met "Ongedaan maken") (research R5b)
-- [ ] T049 [US4] Laat "Video weghalen" in `frontend/src/editor/NodeEditForm.vue` en het kiezen van een andere video in `frontend/src/editor/VideoPicker.vue` eerst `ed.confirmLosingVideo(node)` aanroepen; bij annuleren sluit de kiezer zonder wijziging
-- [ ] T049a [US4] Ongedaan maken na een opgeslagen weghaling (FR-020d, research R5b): houd in `frontend/src/editor/context.js` naast `savedKeys` een kaart `savedVideos` (opgeslagen sleutel → `videoId`, ververst na elke opslag) en een reactieve set `lostVideoNotices`; geef `useCourseHistory` in `frontend/src/lib/history.js` een optionele `transform(snapshot)` die bij `undo`/`redo` wordt toegepast en de opgeschoonde stap in de geschiedenis terugschrijft (geen extra stap, opnieuw blijft werken); de transform zet elk video-onderdeel met `stepVideos[videoId]?.available === false` en `savedVideos.get(node.id) !== node.videoId` op `videoId: null` en voegt de sleutel toe aan `lostVideoNotices`; toon in `frontend/src/editor/VideoNode.vue` en `NodeEditForm.vue` bij zo'n sleutel "Deze video is niet meer beschikbaar en kan niet worden teruggezet."; een video kiezen haalt de sleutel uit de set
-- [ ] T050 [US4] Zorg in `frontend/src/editor/context.js` en `NodeEditForm.vue` dat `setStart(id)` alleen `course.startId` zet (één start), dat "Startonderdeel" uitzetten `startId` op `null` zet, en dat er nergens een knop is om de soort van een onderdeel te wijzigen
+- [X] T048 [US4] Voeg in `frontend/src/editor/context.js` `confirmLosingVideo(node)` toe: geeft direct `true` als `node.type !== 'video'`, er geen `videoId` is of `stepVideos[videoId]?.available !== false`; anders `confirmDialog({ title: 'Video niet meer beschikbaar', body: 'Deze video is niet meer beschikbaar voor jouw organisatie (privé gemaakt of verwijderd). Haal je hem uit de cursus, dan kun je hem daarna niet opnieuw toevoegen.', confirmLabel: 'Doorgaan', danger: true })`; maak `removeNode` async en laat het eerst `confirmLosingVideo` aanroepen; daarna als voorheen (zonder vraag, toast "Onderdeel verwijderd" met "Ongedaan maken") (research R5b)
+- [X] T049 [US4] Laat "Video weghalen" in `frontend/src/editor/NodeEditForm.vue` en het kiezen van een andere video in `frontend/src/editor/VideoPicker.vue` eerst `ed.confirmLosingVideo(node)` aanroepen; bij annuleren sluit de kiezer zonder wijziging
+- [X] T049a [US4] Ongedaan maken na een opgeslagen weghaling (FR-020d, research R5b): houd in `frontend/src/editor/context.js` naast `savedKeys` een kaart `savedVideos` (opgeslagen sleutel → `videoId`, ververst na elke opslag) en een reactieve set `lostVideoNotices`; geef `useCourseHistory` in `frontend/src/lib/history.js` een optionele `transform(snapshot)` die bij `undo`/`redo` wordt toegepast en de opgeschoonde stap in de geschiedenis terugschrijft (geen extra stap, opnieuw blijft werken); de transform zet elk video-onderdeel met `stepVideos[videoId]?.available === false` en `savedVideos.get(node.id) !== node.videoId` op `videoId: null` en voegt de sleutel toe aan `lostVideoNotices`; toon in `frontend/src/editor/VideoNode.vue` en `NodeEditForm.vue` bij zo'n sleutel "Deze video is niet meer beschikbaar en kan niet worden teruggezet."; een video kiezen haalt de sleutel uit de set
+- [X] T050 [US4] Zorg in `frontend/src/editor/context.js` en `NodeEditForm.vue` dat `setStart(id)` alleen `course.startId` zet (één start), dat "Startonderdeel" uitzetten `startId` op `null` zet, en dat er nergens een knop is om de soort van een onderdeel te wijzigen
 
 **Checkpoint**: US4 werkt los, inclusief de waarschuwing voor onbeschikbare video's
 
@@ -231,27 +231,52 @@ geheel, en in de frontend de API, de omzetting en de editor op een lokale kopie
 
 ### Tests for User Story 5
 
-- [ ] T051 [P] [US5] Voeg aan `backend/tests/integration/courseCrud.test.js` toe: `PUT` met nieuwe naam werkt `CourseVersion.name` bij en verandert de volgorde in `GET /courses`; `DELETE /courses/:id` geeft `204`, zet `Course.deletedAt` en `updatedAt`, laat versie, onderdelen, antwoorden en `OrganisationCourse` staan; daarna geven `GET`, `PUT`, `DELETE` en de thumbnailroute `404` en ontbreekt de cursus in de lijst (SC-006)
+- [X] T051 [P] [US5] Voeg aan `backend/tests/integration/courseCrud.test.js` toe: `PUT` met nieuwe naam werkt `CourseVersion.name` bij en verandert de volgorde in `GET /courses`; `DELETE /courses/:id` geeft `204`, zet `Course.deletedAt` en `updatedAt`, laat versie, onderdelen, antwoorden en `OrganisationCourse` staan; daarna geven `GET`, `PUT`, `DELETE` en de thumbnailroute `404` en ontbreekt de cursus in de lijst (SC-006)
 
 ### Implementation for User Story 5
 
-- [ ] T052 [US5] Voeg in `backend/src/modules/courses/courseRepository.js` `softDeleteOwnCourse(id, organisationId)` toe (alleen via `ownCoursesQuery`, `deletedAt = updatedAt = UTC_TIMESTAMP()`, research R7) en in `courseRoutes.js` `DELETE /courses/:id` (`204`, anders `404`)
-- [ ] T053 [US5] Verwijderen in `frontend/src/views/CoursesView.vue`: `confirmDialog({ title: 'Cursus verwijderen?', body: '“<naam>” wordt verwijderd.', confirmLabel: 'Verwijderen', danger: true })`, daarna `deleteCourse(id)`, rij weg en `toast('Cursus verwijderd')`
-- [ ] T054 [US5] Venster "Naam en beschrijving" in `frontend/src/views/EditorView.vue`: wijzigt de lokale kopie (telt als wijziging, valt onder ongedaan maken); tekenteller zoals bij aanmaken; "Opslaan als concept" met lege naam of beschrijving stuurt geen verzoek, opent het venster met de lege velden rood en "Vul een naam en een beschrijving in."
+- [X] T052 [US5] Voeg in `backend/src/modules/courses/courseRepository.js` `softDeleteOwnCourse(id, organisationId)` toe (alleen via `ownCoursesQuery`, `deletedAt = updatedAt = UTC_TIMESTAMP()`, research R7) en in `courseRoutes.js` `DELETE /courses/:id` (`204`, anders `404`)
+- [X] T053 [US5] Verwijderen in `frontend/src/views/CoursesView.vue`: `confirmDialog({ title: 'Cursus verwijderen?', body: '“<naam>” wordt verwijderd.', confirmLabel: 'Verwijderen', danger: true })`, daarna `deleteCourse(id)`, rij weg en `toast('Cursus verwijderd')`
+- [X] T054 [US5] Venster "Naam en beschrijving" in `frontend/src/views/EditorView.vue`: wijzigt de lokale kopie (telt als wijziging, valt onder ongedaan maken); tekenteller zoals bij aanmaken; "Opslaan als concept" met lege naam of beschrijving stuurt geen verzoek, opent het venster met de lege velden rood en "Vul een naam en een beschrijving in."
 
 **Checkpoint**: alle stories werken
+
+**Notities bij de uitvoering van US4–US5 (2026-10-26)**:
+
+- `editor/context.js` kreeg naast `confirmLosingVideo` ook `clearVideo(node)` en
+  `chooseVideo(node, video)`; de kiezer en "Video weghalen" gebruiken die, zodat de waarschuwing
+  op één plek zit. `VideoPicker.vue` krijgt daarom `node` als prop in plaats van `v-model`.
+- "Startonderdeel" in het bewerkformulier is een aan/uit-vakje: aan zet dit onderdeel als enige
+  start, uit laat de cursus zonder start (T050).
+- De controle op een lege naam of beschrijving zit in `saveDraft` (`context.js`); het venster
+  "Naam en beschrijving" staat in `editor/CourseEditor.vue` (sinds Phase 2), niet in
+  `EditorView.vue` (T054). De test staat in `course-dirty.test.js`.
+- Extra frontendtest voor verwijderen vanuit de lijst in `courses-view.test.js` (T053).
 
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T055 [P] Maak `backend/scripts/seed-courses.js` (`node scripts/seed-courses.js <loginCode> <courses> <stepsPerCourse>`, weigert met `NODE_ENV=production`, zoals `seed-videos.js`): cursussen met afwisselend video-onderdelen (met video's uit `visibleVideosQuery`) en vraag-onderdelen met 3 antwoorden; zonder zichtbare video's alleen vraag-onderdelen (quickstart.md § Prestatie)
-- [ ] T056 [P] Controleer dat `backend/src/modules/videos/videoRepository.js`, `videoService.js` en `videoRoutes.js` niet zijn gewijzigd (`git diff --stat` op die bestanden is leeg) en dat alle tests van features 001–003 groen zijn
-- [ ] T057 Draai `docker compose --profile test run --rm --build api-test` en `docker compose run --rm --build web-build npm test`; los fouten op tot alles groen is
+- [X] T055 [P] Maak `backend/scripts/seed-courses.js` (`node scripts/seed-courses.js <loginCode> <courses> <stepsPerCourse>`, weigert met `NODE_ENV=production`, zoals `seed-videos.js`): cursussen met afwisselend video-onderdelen (met video's uit `visibleVideosQuery`) en vraag-onderdelen met 3 antwoorden; zonder zichtbare video's alleen vraag-onderdelen (quickstart.md § Prestatie)
+- [X] T056 [P] Controleer dat `backend/src/modules/videos/videoRepository.js`, `videoService.js` en `videoRoutes.js` niet zijn gewijzigd (`git diff --stat` op die bestanden is leeg) en dat alle tests van features 001–003 groen zijn
+- [X] T057 Draai `docker compose --profile test run --rm --build api-test` en `docker compose run --rm --build web-build npm test`; los fouten op tot alles groen is
 - [ ] T058 Voer de handmatige scenario's 1–23, de controles in § Thumbnail van een onbeschikbare video en § Ongeldige verzoeken, en de prestatiemeting uit [quickstart.md](quickstart.md) uit, en noteer afwijkingen
-- [ ] T059 [P] Draai `npm run lint` in `backend/` en `frontend/`; controleer dat alle code, commentaar, routes en foutcodes Engels zijn en alle UI-teksten en `message`-velden Nederlands (constitution VI)
+- [X] T059 [P] Draai `npm run lint` in `backend/` en `frontend/`; controleer dat alle code, commentaar, routes en foutcodes Engels zijn en alle UI-teksten en `message`-velden Nederlands (constitution VI)
 
 ---
+
+**Notities bij Phase 8 (2026-10-26)**:
+
+- T055: `backend/scripts/seed-courses.js` plus `backend/tests/integration/seedCourses.test.js`. Met
+  50 cursussen van 50 onderdelen duurt `GET /courses` 25 ms en het openen van een concept 18 ms
+  (alleen de API, lokaal gemeten); de browsertijd van SC-007 is nog niet gemeten.
+- T056: `git diff 1914a00 -- backend/src/modules/videos` is leeg; de bibliotheekregel is niet
+  veranderd.
+- T057: in Docker 283/283 backendtests en 198/198 frontendtests groen.
+- T058 staat nog open: de handmatige scenario's vragen de bijgewerkte containers en inlog-
+  gegevens van drie organisaties en de beheerder; dat doet de docent/het team zelf.
+- T059: ESLint schoon in `backend/` en `frontend/`; geen Nederlands commentaar in de gewijzigde
+  code; UI-teksten en `message`-velden zijn Nederlands, routes, foutcodes en commentaar Engels.
 
 ## Dependencies & Execution Order
 

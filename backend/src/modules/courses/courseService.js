@@ -115,6 +115,11 @@ export async function getStepVideoThumbnailKey(courseId, stepId, videoId, organi
   return key
 }
 
+/** Soft deletes an own course (FR-006); 404 when it is not visible to the organisation. */
+export async function deleteCourse(courseId, organisationId) {
+  if ((await repo.softDeleteOwnCourse(courseId, organisationId)) === 0) throw notFound()
+}
+
 /**
  * Checks that every id in the request belongs to this draft and that no step changes its kind.
  * Returns the stored steps and answers by id, for the update below.

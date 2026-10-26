@@ -116,6 +116,20 @@ export async function findStepVideoThumbnailKey(courseId, stepId, videoId, organ
   return row?.thumbnailStorageKey ?? undefined
 }
 
+/**
+ * Soft delete of an own course (constitution V, research R7): only Course gets deletedAt; the
+ * version, steps, answers and owner row stay. Returns the number of courses changed (0 = unknown,
+ * deleted or someone else's).
+ */
+export async function softDeleteOwnCourse(id, organisationId) {
+  const course = await ownCoursesQuery(organisationId).where('c.id', id).first('c.id')
+  if (!course) return 0
+  return db('Course')
+    .where({ id })
+    .whereNull('deletedAt')
+    .update({ deletedAt: db.raw('UTC_TIMESTAMP()'), updatedAt: db.raw('UTC_TIMESTAMP()') })
+}
+
 export function updateDraftFields(trx, versionId, { name, description }) {
   return trx('CourseVersion').where({ id: versionId }).update({ name, description })
 }

@@ -15,6 +15,11 @@ const emit = defineEmits(['deleted'])
 const ed = useEditor()
 
 const isStart = computed(() => ed.course.startId === props.node.id)
+const lostNotice = computed(() => !props.node.videoId && ed.lostVideoNotices.has(props.node.id))
+
+async function remove() {
+  if (await ed.removeNode(props.node.id)) emit('deleted')
+}
 const idp = computed(() => 'f-' + props.node.id)
 
 // Limits of FR-026, counted like the server (code points).
@@ -36,10 +41,11 @@ function setAnswerText(answer, event) {
   <div class="form">
     <div v-if="node.type === 'video'" class="field">
       <span class="label">Video</span>
-      <VideoPicker v-model="node.videoId" :id-base="idp + '-video'" />
+      <p v-if="lostNotice" class="hint err" data-test="lost-video">Deze video is niet meer beschikbaar en kan niet worden teruggezet.</p>
+      <VideoPicker :node="node" :id-base="idp + '-video'" />
       <p v-if="errorAt('videoId')" class="hint err">{{ errorAt('videoId') }}</p>
       <!-- FR-020c: the step stays, without a video. -->
-      <button v-if="node.videoId" class="btn btn-sm btn-ghost remove-video" data-test="remove-video" @click="node.videoId = null">
+      <button v-if="node.videoId" class="btn btn-sm btn-ghost remove-video" data-test="remove-video" @click="ed.clearVideo(node)">
         Video weghalen
       </button>
     </div>
@@ -102,9 +108,11 @@ function setAnswerText(answer, event) {
     </template>
 
     <div class="actions">
-      <span v-if="isStart" class="muted small">Dit is het startonderdeel</span>
-      <button v-else class="btn btn-sm" @click="ed.setStart(node.id)">Maak startonderdeel</button>
-      <button class="btn btn-sm btn-danger" @click="ed.removeNode(node.id); emit('deleted')">Verwijderen</button>
+      <label class="start">
+        <input type="checkbox" :checked="isStart" data-test="start" @change="ed.setStart($event.target.checked ? node.id : null)" />
+        Startonderdeel
+      </label>
+      <button class="btn btn-sm btn-danger" data-test="remove-step" @click="remove">Verwijderen</button>
     </div>
   </div>
 </template>
@@ -122,6 +130,8 @@ function setAnswerText(answer, event) {
 .add { justify-self: start; margin-left: -8px; }
 .remove-video { justify-self: start; margin-left: -8px; }
 .feedback-hint { margin-top: -12px; }
+.start { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
+.start input { accent-color: var(--brand); }
 .actions {
   display: flex;
   gap: 8px;

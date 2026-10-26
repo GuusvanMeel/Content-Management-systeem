@@ -7,13 +7,12 @@ import { listVideos } from '../api/videos'
 import { formatDuration } from '../lib/util'
 import { useEditor } from './context'
 
-const props = defineProps({ modelValue: Number, idBase: { type: String, default: 'vp' } })
-const emit = defineEmits(['update:modelValue'])
+const props = defineProps({ node: Object, idBase: { type: String, default: 'vp' } })
 const ed = useEditor()
-const picking = ref(!props.modelValue)
+const picking = ref(!props.node.videoId)
 const videos = ref([])
 const loadState = ref('loading') // loading | ready | error
-const current = computed(() => (props.modelValue ? ed.stepVideos[props.modelValue] : null))
+const current = computed(() => (props.node.videoId ? ed.stepVideos[props.node.videoId] : null))
 
 async function load() {
   loadState.value = 'loading'
@@ -26,9 +25,9 @@ async function load() {
 }
 onMounted(load)
 
-function choose(video) {
-  ed.rememberVideo(video)
-  emit('update:modelValue', video.id)
+// Replacing a video that can no longer be picked asks first (FR-020b); cancel closes the list.
+async function choose(video) {
+  await ed.chooseVideo(props.node, video)
   picking.value = false
 }
 </script>
@@ -50,7 +49,7 @@ function choose(video) {
       </li>
       <template v-else>
         <li v-for="v in videos" :key="v.id">
-          <button class="opt" :class="{ on: v.id === modelValue }" data-test="video-option" @click="choose(v)">
+          <button class="opt" :class="{ on: v.id === node.videoId }" data-test="video-option" @click="choose(v)">
             <span class="th" :style="{ backgroundImage: `url(${v.thumbnailUrl})` }"></span>
             <span class="info">
               <span class="name">{{ v.name }}</span>

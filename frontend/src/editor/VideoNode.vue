@@ -10,6 +10,7 @@ const ed = useEditor()
 const video = computed(() => (props.node.videoId ? ed.stepVideos[props.node.videoId] : null))
 const selected = computed(() => ed.selectedId === props.node.id)
 const isStart = computed(() => ed.course.startId === props.node.id)
+const lostNotice = computed(() => !props.node.videoId && ed.lostVideoNotices.has(props.node.id))
 </script>
 
 <template>
@@ -21,6 +22,7 @@ const isStart = computed(() => ed.course.startId === props.node.id)
       <div v-if="isStart" class="tags"><span class="tag tag-start">Start</span></div>
       <strong class="t" :class="{ empty: !video }">{{ nodeLabel(node, ed.stepVideos) }}</strong>
       <span v-if="video?.durationSeconds" class="muted small">{{ formatDuration(video.durationSeconds) }}</span>
+      <span v-if="lostNotice" class="lost">Deze video is niet meer beschikbaar en kan niet worden teruggezet.</span>
     </div>
   </div>
 </template>
@@ -47,5 +49,6 @@ const isStart = computed(() => ed.course.startId === props.node.id)
 .tags { display: flex; gap: 4px; }
 .t { font-size: 0.9rem; font-weight: 500; line-height: 1.3; }
 .t.empty { color: var(--faint); font-weight: 400; }
+.lost { font-size: 0.8rem; color: var(--err); line-height: 1.3; }
 
 </style>

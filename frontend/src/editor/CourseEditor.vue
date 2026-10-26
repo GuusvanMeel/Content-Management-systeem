@@ -1,7 +1,7 @@
 <script setup>
 // The course editor on a local copy of the draft, with "Opslaan als concept", undo/redo and a
 // question before leaving with unsaved changes (specs/004 FR-009, FR-009a, FR-020a, research R10).
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { saveCourse } from '../api/courses'
 import { toEditor } from '../lib/courseMapping'
@@ -10,6 +10,7 @@ import { confirmDialog } from '../lib/ui'
 import { provideEditor } from './context'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import DescriptionField from '../components/DescriptionField.vue'
 import CanvasEditor from './CanvasEditor.vue'
 import OverviewList from './OverviewList.vue'
 
@@ -23,6 +24,11 @@ const ed = provideEditor({
   doc: props.doc,
   history,
   save: (payload) => saveCourse(props.doc.id, payload),
+})
+
+const settingsMessage = computed(() => {
+  if (!course.value.name.trim() || !course.value.description.trim()) return 'Vul een naam en een beschrijving in.'
+  return ed.fieldErrors.name ?? ed.fieldErrors.description ?? ''
 })
 
 const VARIANTS = [
@@ -103,14 +109,30 @@ onBeforeRouteLeave((to) => {
       <OverviewList v-else />
     </div>
 
+    <!-- Name and description change the local copy: they count as changes and fall under undo (US5). -->
     <Modal v-if="ed.showSettings" title="Cursus" @close="ed.showSettings = false">
-      <div class="field">
-        <label for="cs-name">Naam</label>
-        <input id="cs-name" v-model="course.name" class="input" :class="{ invalid: !course.name.trim() || ed.fieldErrors.name }" />
-      </div>
-      <div class="field">
-        <label for="cs-desc">Beschrijving</label>
-        <textarea id="cs-desc" v-model="course.description" class="textarea" rows="4" :class="{ invalid: !course.description.trim() || ed.fieldErrors.description }" />
+      <div class="settings">
+        <DescriptionField
+          id="cs-name"
+          v-model="course.name"
+          label="Naam"
+          subject="De naam"
+          test-id="settings-name"
+          :max="255"
+          :optional="false"
+          :multiline="false"
+          :invalid="!course.name.trim() || !!ed.fieldErrors.name"
+        />
+        <DescriptionField
+          id="cs-desc"
+          v-model="course.description"
+          test-id="settings-description"
+          :max="1000"
+          :optional="false"
+          :rows="4"
+          :invalid="!course.description.trim() || !!ed.fieldErrors.description"
+        />
+        <p v-if="settingsMessage" class="hint err" data-test="settings-error">{{ settingsMessage }}</p>
       </div>
       <template #foot><button class="btn btn-primary" @click="ed.showSettings = false">Klaar</button></template>
     </Modal>
@@ -146,6 +168,7 @@ onBeforeRouteLeave((to) => {
 .name { font-size: 1.05rem; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
 .seg { margin-left: auto; }
 .right { display: flex; align-items: center; gap: 6px; }
+.settings { display: grid; gap: 16px; }
 .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stage > :deep(*) { flex: 1; min-height: 0; }
 @media (max-width: 900px) {

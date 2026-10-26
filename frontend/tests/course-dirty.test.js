@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, reactive, ref } from 'vue'
 import { provideEditor } from '../src/editor/context'
 import { toEditor } from '../src/lib/courseMapping'
 import { useCourseHistory } from '../src/lib/history'
+import { ui } from '../src/lib/ui'
 
 // Unsaved changes, undo and saving in the editor (specs/004 FR-009, FR-020a, research R10).
 
@@ -85,6 +86,26 @@ describe('unsaved changes', () => {
   })
 })
 
+describe('start step and removing (US4, FR-018, FR-020)', () => {
+  it('has only one start step, and the start can be switched off', async () => {
+    mountEditor()
+    const other = ed.addNode('video', { x: 0, y: 300 })
+    ed.setStart(other.id)
+    expect(ed.course.startId).toBe(other.id)
+    ed.setStart(null)
+    expect(ed.course.startId).toBeNull()
+  })
+
+  it('leaves no start step when the start step is removed, without asking', async () => {
+    mountEditor()
+    expect(ed.course.startId).toBe('s103')
+    expect(await ed.removeNode('s103')).toBe(true)
+    expect(ed.course.startId).toBeNull()
+    expect(ui.confirm).toBeNull()
+    expect(ui.toasts.at(-1)).toMatchObject({ message: 'Onderdeel verwijderd', actionLabel: 'Ongedaan maken' })
+  })
+})
+
 describe('saving', () => {
   it('sends the payload, takes over the new keys and is clean afterwards', async () => {
     mountEditor()
@@ -122,7 +143,7 @@ describe('saving', () => {
 
   it('sends a step that was restored after its removal was saved as a new step', async () => {
     mountEditor()
-    ed.removeNode('s103')
+    await ed.removeNode('s103')
     await settle()
     save.mockResolvedValueOnce({ ...doc, steps: [] })
     await ed.saveDraft()
@@ -147,12 +168,23 @@ describe('saving', () => {
     expect(ed.dirty).toBe(true)
   })
 
+  it('does not send an empty name or description, and opens the name dialog (US5, T054)', async () => {
+    mountEditor()
+    ed.course.description = '   '
+    await settle()
+    expect(await ed.saveDraft()).toBe(false)
+    expect(save).not.toHaveBeenCalled()
+    expect(ed.showSettings).toBe(true)
+    expect(ed.fieldErrors).toEqual({ description: 'Vul een naam en een beschrijving in.' })
+  })
+
   it('marks the fields of a validation error', async () => {
     mountEditor()
-    ed.course.name = ''
+    ed.course.nodes[0].question = 'Andere vraag'
     await settle()
-    save.mockRejectedValue(Object.assign(new Error('Controleer de ingevulde gegevens.'), { status: 400, code: 'validation_failed', fields: { name: 'Vul een naam en een beschrijving in.' } }))
+    save.mockRejectedValue(Object.assign(new Error('Controleer de ingevulde gegevens.'), { status: 400, code: 'validation_failed', fields: { 'steps.0.answers': 'Kies precies één goed antwoord.' } }))
     await ed.saveDraft()
-    expect(ed.fieldErrors).toEqual({ name: 'Vul een naam en een beschrijving in.' })
+    expect(save).toHaveBeenCalled()
+    expect(ed.fieldErrors).toEqual({ 'steps.0.answers': 'Kies precies één goed antwoord.' })
   })
 })

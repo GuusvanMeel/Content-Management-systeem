@@ -5,6 +5,7 @@ import {
   createCourseRow,
   createOrganisationRow,
   createStepRow,
+  createVideoRow,
   resetDatabase,
 } from '../helpers/testApp.js'
 
@@ -113,5 +114,60 @@ describe('the course list (FR-004)', () => {
     await createCourseRow({ organisationId: a.id, name: 'Later', updatedAt: new Date('2026-02-01T00:00:00Z') })
     await as.a.put(`/api/organisation/courses/${first.courseId}`).send({ name: 'Eerst', description: 'D', steps: [] })
     expect((await list('a')).map((c) => c.name)).toEqual(['Eerst', 'Later'])
+  })
+})
+
+describe('changing a course (US5, FR-005)', () => {
+  it('saves a new name and moves the course to the top of the list', async () => {
+    const first = await createCourseRow({ organisationId: a.id, name: 'Oud', updatedAt: new Date('2026-01-01T00:00:00Z') })
+    await createCourseRow({ organisationId: a.id, name: 'Ander', updatedAt: new Date('2026-02-01T00:00:00Z') })
+    const response = await as.a.put(`/api/organisation/courses/${first.courseId}`).send({ name: 'Nieuw', description: 'D', steps: [] })
+    expect(response.status).toBe(200)
+    expect((await db('CourseVersion').where({ id: first.versionId }).first()).name).toBe('Nieuw')
+    expect((await list('a')).map((c) => c.name)).toEqual(['Nieuw', 'Ander'])
+  })
+})
+
+describe('deleting a course (US5, FR-006, SC-006)', () => {
+  let course
+  let videoStep
+  let video
+
+  beforeEach(async () => {
+    course = await createCourseRow({ organisationId: a.id, name: 'Weg', updatedAt: new Date('2026-01-01T00:00:00Z') })
+    video = await createVideoRow({ organisationId: a.id })
+    videoStep = await createStepRow({ versionId: course.versionId, videoId: video.id, isStart: true })
+    await createStepRow({ versionId: course.versionId, stepType: 'question' })
+  })
+
+  const url = () => `/api/organisation/courses/${course.courseId}`
+
+  it('soft deletes: the course gets deletedAt and updatedAt, everything else stays', async () => {
+    const response = await as.a.delete(url())
+    expect(response.status).toBe(204)
+    const row = await db('Course').where({ id: course.courseId }).first()
+    expect(row.deletedAt).not.toBeNull()
+    expect(row.updatedAt.getTime()).toBeGreaterThan(new Date('2026-01-01T00:00:00Z').getTime())
+    expect(await db('CourseVersion').where({ courseId: course.courseId })).toHaveLength(1)
+    expect(await db('CourseStep').where({ courseVersionId: course.versionId })).toHaveLength(2)
+    expect(await db('Answer')).toHaveLength(2)
+    expect(await db('OrganisationCourse').where({ courseId: course.courseId })).toHaveLength(1)
+  })
+
+  it('is gone from the list and from every course route afterwards', async () => {
+    await as.a.delete(url())
+    expect(await list('a')).toEqual([])
+    const responses = [
+      await as.a.get(url()),
+      await as.a.put(url()).send({ name: 'X', description: 'Y', steps: [] }),
+      await as.a.delete(url()),
+      await as.a.get(`${url()}/steps/${videoStep.id}/videos/${video.id}/thumbnail`),
+    ]
+    for (const response of responses) expect(response.status).toBe(404)
+  })
+
+  it('cannot be done by another organisation', async () => {
+    expect((await as.b.delete(url())).status).toBe(404)
+    expect((await db('Course').where({ id: course.courseId }).first()).deletedAt).toBeNull()
   })
 })

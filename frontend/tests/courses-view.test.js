@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import CoursesView from '../src/views/CoursesView.vue'
+import { ui } from '../src/lib/ui'
 import { jsonResponse } from './helpers'
 
 // The course list (specs/004 US1, contracts/ui.md § Cursussen).
@@ -20,6 +21,7 @@ function mockApi({ courses = [], post } = {}) {
   globalThis.fetch.mockImplementation(async (url, options = {}) => {
     if (url === '/api/organisation/courses' && (options.method ?? 'GET') === 'GET') return jsonResponse(200, { courses })
     if (url === '/api/organisation/courses' && options.method === 'POST') return post(JSON.parse(options.body))
+    if (url.startsWith('/api/organisation/courses/') && options.method === 'DELETE') return new Response(null, { status: 204 })
     return jsonResponse(404, { error: { code: 'not_found', message: 'Niet gevonden.' } })
   })
 }
@@ -114,6 +116,29 @@ describe('CoursesView', () => {
     await wrapper.find('form#new-course').trigger('submit')
     await flushPromises()
     expect(wrapper.find('[data-test="create-error"]').text()).toBe('De naam mag maximaal 255 tekens lang zijn.')
+    wrapper.unmount()
+  })
+})
+
+describe('deleting a course (US5)', () => {
+  it('asks first and only deletes after confirming', async () => {
+    mockApi({ courses: [COURSE] })
+    const { wrapper } = await mountView()
+    const deletes = () => globalThis.fetch.mock.calls.filter(([, options]) => options?.method === 'DELETE')
+
+    await wrapper.find('button[title="Verwijderen"]').trigger('click')
+    expect(ui.confirm).toMatchObject({ title: 'Cursus verwijderen?', body: '“Redding in het diepe bad” wordt verwijderd.', confirmLabel: 'Verwijderen' })
+    ui.confirm.resolve(false)
+    await flushPromises()
+    expect(deletes()).toHaveLength(0)
+    expect(wrapper.find('.row').exists()).toBe(true)
+
+    await wrapper.find('button[title="Verwijderen"]').trigger('click')
+    ui.confirm.resolve(true)
+    await flushPromises()
+    expect(deletes()[0][0]).toBe('/api/organisation/courses/12')
+    expect(wrapper.find('.row').exists()).toBe(false)
+    expect(ui.toasts.at(-1).message).toBe('Cursus verwijderd')
     wrapper.unmount()
   })
 })

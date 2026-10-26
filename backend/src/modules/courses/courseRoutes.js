@@ -45,6 +45,12 @@ courseRoutes.get('/courses/:id/steps/:stepId/videos/:videoId/thumbnail', async (
   await sendStoredFile(res, key, { contentType: 'image/jpeg', cacheControl: 'private, max-age=3600' })
 })
 
+// Soft delete by the owner: the course leaves the list, its data stays (FR-006, research R7).
+courseRoutes.delete('/courses/:id', async (req, res) => {
+  await service.deleteCourse(courseId(req), getOrganisationId(req))
+  res.status(204).end()
+})
+
 // "Opslaan als concept": the whole draft at once (research R3). Only these fields are read.
 courseRoutes.put('/courses/:id', async (req, res) => {
   const { name, description, steps } = req.body ?? {}
