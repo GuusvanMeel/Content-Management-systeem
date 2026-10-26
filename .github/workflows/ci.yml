@@ -1,0 +1,119 @@
+# CI for the VR Lifeguard CMS. Explanation per job and how to read a failed run: docs/ci.md.
+# CodeQL runs separately through GitHub's default setup and is not part of this file.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+
+# A new push to the same branch cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Same Node version as the Docker images (node:22-alpine in backend/ and frontend/Dockerfile).
+  NODE_VERSION: '22'
+
+jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Backend – npm ci
+        working-directory: backend
+        run: npm ci
+      - name: Backend – lint
+        working-directory: backend
+        run: npm run lint
+      - name: Frontend – npm ci
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend – lint
+        working-directory: frontend
+        run: npm run lint
+
+  build:
+    name: Build (Docker images)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # docker-compose.yml reads .env (env_file of the api services). Only dummy values: nothing
+      # connects to a database in this job. The file is created on the runner and never committed.
+      - name: Create .env with dummy values
+        run: cp .env.example .env
+      # The production images as they run on the VPS: api (target prod) and web (frontend build
+      # inside the image + nginx). nginx/certs is only mounted at runtime, not needed to build.
+      - name: Build api and web images
+        run: docker compose build api web
+
+  tests:
+    name: Tests (backend in Docker, frontend Vitest)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Values for the test database only (profile "test", a throwaway MariaDB in tmpfs). These are
+      # not secrets: the database exists only during this job. DB_HOST, DB_PORT, UPLOADS_DIR and
+      # VIDEOS_DIR are set by docker-compose.yml for api-test.
+      - name: Create .env for the tests
+        run: |
+          cat > .env <<'EOF'
+          DB_HOST=db-test
+          DB_PORT=3306
+          DB_NAME=cms
+          DB_USER=cms
+          DB_PASSWORD=ci-test-only-password
+          DB_ROOT_PASSWORD=ci-test-only-root-password
+          TEST_DB_NAME=cms_test
+          API_PORT=3000
+          UPLOADS_DIR=/tmp/uploads
+          VIDEOS_DIR=/tmp/videos
+          COOKIE_SECURE=false
+          SESSION_IDLE_TIMEOUT_MINUTES=60
+          EOF
+      - name: Backend tests (MariaDB test database in Docker)
+        run: docker compose --profile test run --rm --build api-test
+      # Also when the backend tests failed, so one run shows every failing test.
+      - name: Frontend tests (Vitest)
+        if: ${{ !cancelled() }}
+        run: docker compose run --rm web-build npm test
+      - name: Show container status and logs
+        if: failure()
+        run: |
+          docker compose --profile test ps -a
+          docker compose --profile test logs --no-color --timestamps
+      - name: Stop and remove test containers
+        if: always()
+        run: docker compose --profile test down --volumes --remove-orphans
+
+  # Playwright (end-to-end tests in a browser) comes later: its job goes here, after tests.
+
+  audit:
+    name: Audit (npm audit, high and critical)
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # npm audit reads package-lock.json; no install needed. Fails on high or critical.
+      - name: Backend – npm audit
+        working-directory: backend
+        run: npm audit --audit-level=high
+      - name: Frontend – npm audit
+        working-directory: frontend
+        run: npm audit --audit-level=high

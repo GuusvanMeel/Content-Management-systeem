@@ -45,7 +45,12 @@ async function toDraftDocument(course, organisationId, trx) {
       }
       if (step.stepType === 'video') {
         const row = videos.get(step.id)
-        return { ...base, videoId: step.videoId, video: row ? toStepVideo(course.id, step.id, row, library) : null }
+        return {
+          ...base,
+          videoId: step.videoId,
+          video: row ? toStepVideo(course.id, step.id, row, library) : null,
+          nextStepId: step.nextCourseStepId ?? null,
+        }
       }
       return {
         ...base,
@@ -53,7 +58,12 @@ async function toDraftDocument(course, organisationId, trx) {
         feedback: step.feedback,
         answers: answers
           .filter((answer) => answer.courseStepId === step.id)
-          .map((answer) => ({ id: answer.id, answerText: answer.answerText, isCorrect: Boolean(answer.isCorrect) })),
+          .map((answer) => ({
+            id: answer.id,
+            answerText: answer.answerText,
+            isCorrect: Boolean(answer.isCorrect),
+            nextStepId: answer.nextCourseStepId ?? null,
+          })),
       }
     }),
   }
@@ -147,21 +157,41 @@ function checkIds(steps, storedSteps, storedAnswers) {
   if (Object.keys(fields).length > 0) throw validationError(fields)
 }
 
+// Connections are written afterwards, once every step has an id (specs/005 research R1).
 const stepRow = (step) =>
   step.stepType === 'video'
-    ? { stepType: 'video', isStart: step.isStart, positionX: step.positionX, positionY: step.positionY, videoId: step.videoId, questionText: null, feedback: null }
-    : { stepType: 'question', isStart: step.isStart, positionX: step.positionX, positionY: step.positionY, videoId: null, questionText: step.questionText, feedback: step.feedback }
+    ? { stepType: 'video', isStart: step.isStart, positionX: step.positionX, positionY: step.positionY, videoId: step.videoId, questionText: null, feedback: null, nextCourseStepId: null }
+    : { stepType: 'question', isStart: step.isStart, positionX: step.positionX, positionY: step.positionY, videoId: null, questionText: step.questionText, feedback: step.feedback, nextCourseStepId: null }
 
+/** Saves the answers of a question step; returns their ids in request order. */
 async function saveAnswers(trx, stepId, answers, storedAnswers) {
   const keep = new Set(answers.filter((answer) => answer.id !== undefined).map((answer) => answer.id))
   await repo.deleteAnswers(
     trx,
     storedAnswers.filter((row) => row.courseStepId === stepId && !keep.has(row.id)).map((row) => row.id),
   )
+  const ids = []
   for (const [sortOrder, answer] of answers.entries()) {
-    const row = { answerText: answer.answerText, isCorrect: answer.isCorrect, sortOrder }
-    if (answer.id === undefined) await repo.insertAnswer(trx, stepId, row)
-    else await repo.updateAnswer(trx, answer.id, row)
+    const row = { answerText: answer.answerText, isCorrect: answer.isCorrect, sortOrder, nextCourseStepId: null }
+    if (answer.id === undefined) ids.push(await repo.insertAnswer(trx, stepId, row))
+    else {
+      await repo.updateAnswer(trx, answer.id, row)
+      ids.push(answer.id)
+    }
+  }
+  return ids
+}
+
+/** Points steps and answers to their next step, now that every key has an id (research R1). */
+async function saveConnections(trx, steps, stepIds, answerIds) {
+  const idByKey = new Map(steps.map((step, i) => [step.key, stepIds[i]]))
+  for (const [i, step] of steps.entries()) {
+    if (step.stepType === 'video' && step.nextStepKey !== null) {
+      await repo.setStepNext(trx, stepIds[i], idByKey.get(step.nextStepKey))
+    }
+    for (const [j, answer] of (step.answers ?? []).entries()) {
+      if (answer.nextStepKey !== null) await repo.setAnswerNext(trx, answerIds[i][j], idByKey.get(answer.nextStepKey))
+    }
   }
 }
 
@@ -179,12 +209,16 @@ export async function saveDraft(courseId, organisationId, body) {
 
     const keep = new Set(draft.steps.filter((step) => step.id !== undefined).map((step) => step.id))
     await repo.deleteSteps(trx, storedSteps.filter((step) => !keep.has(step.id)).map((step) => step.id))
+    const stepIds = []
+    const answerIds = []
     for (const step of draft.steps) {
       let stepId = step.id
       if (stepId === undefined) stepId = await repo.insertStep(trx, course.versionId, stepRow(step))
       else await repo.updateStep(trx, stepId, stepRow(step))
-      if (step.stepType === 'question') await saveAnswers(trx, stepId, step.answers, storedAnswers)
+      stepIds.push(stepId)
+      answerIds.push(step.stepType === 'question' ? await saveAnswers(trx, stepId, step.answers, storedAnswers) : [])
     }
+    await saveConnections(trx, draft.steps, stepIds, answerIds)
 
     await repo.updateDraftFields(trx, course.versionId, draft)
     await repo.touchCourse(trx, course.id)

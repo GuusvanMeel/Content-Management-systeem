@@ -24,8 +24,11 @@ describe('seedCourses', () => {
     expect(draft.steps.filter((s) => s.isStart)).toHaveLength(1)
     // What the editor would send back is accepted unchanged.
     const steps = draft.steps.map((step) => {
-      const copy = { ...step }
+      const copy = { ...step, key: `s${step.id}` }
       delete copy.video
+      delete copy.nextStepId
+      if (copy.answers) copy.answers = copy.answers.map(({ nextStepId, ...answer }) => ({ ...answer, nextStepKey: nextStepId ? `s${nextStepId}` : null }))
+      if (step.stepType === 'video') copy.nextStepKey = step.nextStepId ? `s${step.nextStepId}` : null
       return copy
     })
     expect((await agent.put(`/api/organisation/courses/${draft.id}`).send({ name: draft.name, description: draft.description, steps })).status).toBe(200)

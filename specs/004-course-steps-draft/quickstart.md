@@ -43,8 +43,8 @@ Verwacht: alles groen, inclusief `courseIsolation.test.js` (SC-003, ook de thumb
 | --- | --- | --- |
 | 1 | Cursussen openen zonder cursussen | "Er zijn nog geen cursussen." (US1-4) |
 | 2 | Nieuwe cursus met lege naam → Aanmaken | Velden rood, "Vul een naam en een beschrijving in.", niets aangemaakt |
-| 3 | Nieuwe cursus met naam en beschrijving | Editor opent, label "Concept", met één videoblok "Kies een video" gemarkeerd als "Start" (FR-001a); in de lijst "1 video · 0 vragen" |
-| 4 | In het startonderdeel uit 3 een video kiezen | Kiezer toont precies: eigen video, B-algemeen, B-selectief; niet B-eigen of C-selectief (SC-005). Het onderdeel houdt "Start" |
+| 3 | Nieuwe cursus met naam en beschrijving | Editor opent, label "Concept". Sinds feature 005 (FR-028, vervangt FR-001a) met het voorbeeld: startvraag "Wat doe je?" met twee antwoorden, elk naar een videoblok "Kies een video"; in de lijst "2 video's · 1 vraag" |
+| 4 | In een videoblok uit 3 een video kiezen | Kiezer toont precies: eigen video, B-algemeen, B-selectief; niet B-eigen of C-selectief (SC-005) |
 | 5 | Tweede video-onderdeel zonder video, opslaan | Opgeslagen; blok toont "Kies een video". Dat is bewust: een concept mag een video-onderdeel zonder video bevatten (FR-010, FR-012); de controle of een cursus volledig is, komt pas met publiceren (FR-09) |
 | 6 | Vraag-onderdeel toevoegen, 4 antwoorden, 3e goed, feedback invullen, één antwoord leeg laten, opslaan, pagina verversen | Alles staat er nog precies zo (SC-002); vijfde antwoord toevoegen kan niet |
 | 7 | Antwoord verwijderen tot er 2 over zijn; het goede antwoord verwijderen | Bij 2 geen verwijderknop meer; het eerste antwoord wordt goed |

@@ -1,5 +1,5 @@
-// Converts between the draft document of the API (specs/004 contracts/api.md) and the editor
-// model of lib/course.js (research R9).
+// Converts between the draft document of the API (specs/004 and specs/005 contracts/api.md) and
+// the editor model of lib/course.js (specs/004 research R9, specs/005 research R1).
 //
 // Editor keys: a saved step is 's<id>', a saved answer 'a<id>'. New steps and answers get a
 // temporary uid() key (with an underscore), so the two can never be confused.
@@ -7,6 +7,7 @@
 const stepKey = (id) => `s${id}`
 const answerKey = (id) => `a${id}`
 const serverId = (key) => Number(key.slice(1))
+const nextKey = (id) => (id ? stepKey(id) : null)
 
 /**
  * The editor model and the video details per video id. The video details stay out of the course,
@@ -21,13 +22,18 @@ export function toEditor(doc) {
         const { name, durationSeconds, thumbnailUrl, available } = step.video
         stepVideos[step.videoId] = { name, durationSeconds, thumbnailUrl, available }
       }
-      return { ...base, videoId: step.videoId }
+      return { ...base, videoId: step.videoId, next: nextKey(step.nextStepId) }
     }
     return {
       ...base,
       question: step.questionText ?? '',
       feedback: step.feedback ?? '',
-      answers: step.answers.map((answer) => ({ id: answerKey(answer.id), text: answer.answerText, correct: answer.isCorrect })),
+      answers: step.answers.map((answer) => ({
+        id: answerKey(answer.id),
+        text: answer.answerText,
+        correct: answer.isCorrect,
+        target: nextKey(answer.nextStepId),
+      })),
     }
   })
   const start = doc.steps.find((step) => step.isStart)
@@ -80,12 +86,19 @@ export function keyChanges(course, doc, saved) {
   return changes
 }
 
-/** Renames step and answer keys of an editor course in place, using `changes` (old → new). */
+/**
+ * Renames step and answer keys of an editor course in place, using `changes` (old → new),
+ * including the connections that point to renamed steps.
+ */
 export function applyKeyChanges(course, changes) {
   if (changes[course.startId]) course.startId = changes[course.startId]
   for (const node of course.nodes) {
     if (changes[node.id]) node.id = changes[node.id]
-    for (const answer of node.answers ?? []) if (changes[answer.id]) answer.id = changes[answer.id]
+    if (changes[node.next]) node.next = changes[node.next]
+    for (const answer of node.answers ?? []) {
+      if (changes[answer.id]) answer.id = changes[answer.id]
+      if (changes[answer.target]) answer.target = changes[answer.target]
+    }
   }
   return course
 }
@@ -101,19 +114,26 @@ export function toPayload(course, saved) {
     name: course.name,
     description: course.description,
     steps: course.nodes.map((node) => {
+      // The editor key is the request key; connections point to keys (specs/005 research R1).
       const base = {
+        key: node.id,
         ...idOf(node.id),
         stepType: node.type,
         isStart: course.startId === node.id,
         positionX: Math.round(node.x),
         positionY: Math.round(node.y),
       }
-      if (node.type === 'video') return { ...base, videoId: node.videoId ?? null }
+      if (node.type === 'video') return { ...base, videoId: node.videoId ?? null, nextStepKey: node.next ?? null }
       return {
         ...base,
         questionText: node.question ?? '',
         feedback: node.feedback ? node.feedback : null,
-        answers: node.answers.map((answer) => ({ ...idOf(answer.id), answerText: answer.text ?? '', isCorrect: !!answer.correct })),
+        answers: node.answers.map((answer) => ({
+          ...idOf(answer.id),
+          answerText: answer.text ?? '',
+          isCorrect: !!answer.correct,
+          nextStepKey: answer.target ?? null,
+        })),
       }
     }),
   }

@@ -54,16 +54,33 @@ export function listOwnCourses(organisationId) {
 
 /**
  * A new course: Course, its owner row and the draft (version 1), all at the database clock
- * (research R1). The draft starts with one video step without a video, marked as the start step
- * (specs/004 FR-001a).
+ * (specs/004 research R1). The draft starts with a small example of branching (specs/005 FR-028,
+ * research R3): a start question with two answers, each leading to its own video step.
  */
 export async function insertCourse(trx, organisationId, { name, description }) {
   requireId(organisationId)
   const now = db.raw('UTC_TIMESTAMP()')
   const [courseId] = await trx('Course').insert({ isSharedInLibrary: false, createdAt: now, updatedAt: now })
   await trx('OrganisationCourse').insert({ organisationId, courseId, isOwner: true, addedAt: now })
-  const [versionId] = await trx('CourseVersion').insert({ courseId, versionNumber: 1, name, description, publishedAt: null })
-  await trx('CourseStep').insert({ courseVersionId: versionId, stepType: 'video', isStart: true, videoId: null, positionX: 0, positionY: 0 })
+  const [courseVersionId] = await trx('CourseVersion').insert({ courseId, versionNumber: 1, name, description, publishedAt: null })
+  const video = async (positionX) => {
+    const [id] = await trx('CourseStep').insert({ courseVersionId, stepType: 'video', isStart: false, videoId: null, positionX, positionY: 260 })
+    return id
+  }
+  const [questionId] = await trx('CourseStep').insert({
+    courseVersionId,
+    stepType: 'question',
+    isStart: true,
+    questionText: 'Wat doe je?',
+    feedback: null,
+    positionX: 0,
+    positionY: 0,
+  })
+  const [left, right] = [await video(-130), await video(130)]
+  await trx('Answer').insert([
+    { courseStepId: questionId, answerText: 'Ik grijp in', isCorrect: true, sortOrder: 0, nextCourseStepId: left },
+    { courseStepId: questionId, answerText: 'Ik wacht af', isCorrect: false, sortOrder: 1, nextCourseStepId: right },
+  ])
   return courseId
 }
 
@@ -71,7 +88,7 @@ export function listSteps(versionId, trx = db) {
   return trx('CourseStep')
     .where({ courseVersionId: versionId })
     .orderBy('id')
-    .select('id', 'stepType', 'isStart', 'videoId', 'questionText', 'feedback', 'positionX', 'positionY')
+    .select('id', 'stepType', 'isStart', 'videoId', 'questionText', 'feedback', 'positionX', 'positionY', 'nextCourseStepId')
 }
 
 export function listAnswers(stepIds, trx = db) {
@@ -79,7 +96,7 @@ export function listAnswers(stepIds, trx = db) {
   return trx('Answer')
     .whereIn('courseStepId', stepIds)
     .orderBy(['courseStepId', 'sortOrder'])
-    .select('id', 'courseStepId', 'answerText', 'isCorrect', 'sortOrder')
+    .select('id', 'courseStepId', 'answerText', 'isCorrect', 'sortOrder', 'nextCourseStepId')
 }
 
 /** Of `videoIds`, the ones in the organisation's library (the unchanged rule of specs/003 R1). */
@@ -166,4 +183,12 @@ export async function insertAnswer(trx, courseStepId, row) {
 
 export function updateAnswer(trx, id, row) {
   return trx('Answer').where({ id }).update(row)
+}
+
+export function setStepNext(trx, id, nextCourseStepId) {
+  return trx('CourseStep').where({ id }).update({ nextCourseStepId })
+}
+
+export function setAnswerNext(trx, id, nextCourseStepId) {
+  return trx('Answer').where({ id }).update({ nextCourseStepId })
 }

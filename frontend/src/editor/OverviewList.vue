@@ -1,11 +1,45 @@
 <script setup>
-// Variant "Lijst": all steps as a flat list, the start step first, then top to bottom on the
-// canvas (specs/004 research R9). Clicking a step opens it on the canvas.
+// Variant "Lijst": the route written out from the start (specs/005 FR-024), from the prototype.
+// Questions branch into their answers; a loop shows "Verder bij …"; a question without any next
+// step is an end; steps that cannot be reached are listed apart. Clicking a step opens it.
+import { computed } from 'vue'
 import { useEditor } from './context'
-import { nodeLabel } from '../lib/course'
-import Icon from '../components/Icon.vue'
+import { findNode, nodeLabel } from '../lib/course'
+import { LETTERS } from '../lib/util'
+import RouteTree from './RouteTree.vue'
 
 const ed = useEditor()
+
+const route = computed(() => {
+  const seen = new Set()
+  const walk = (id) => {
+    const items = []
+    while (id) {
+      const n = findNode(ed.course, id)
+      if (!n) break
+      if (seen.has(id)) {
+        items.push({ kind: 'ref', node: n })
+        break
+      }
+      seen.add(id)
+      items.push({ kind: 'node', node: n })
+      if (n.type === 'question') {
+        if (n.answers.some((a) => a.target)) {
+          items.push({
+            kind: 'branch',
+            branches: n.answers.map((a, i) => ({ answer: a, letter: LETTERS[i], items: a.target ? walk(a.target) : [{ kind: 'open' }] })),
+          })
+        } else items.push({ kind: 'end' })
+        break
+      }
+      if (!n.next) items.push({ kind: 'end' })
+      id = n.next
+    }
+    return items
+  }
+  const items = ed.course.startId ? walk(ed.course.startId) : []
+  return { items, loose: ed.course.nodes.filter((n) => !seen.has(n.id)) }
+})
 </script>
 
 <template>
@@ -15,16 +49,14 @@ const ed = useEditor()
         <h2>{{ ed.course.name || 'Naamloze cursus' }}</h2>
         <p class="muted">{{ ed.course.description }}</p>
       </header>
-      <ol v-if="ed.ordered.length" class="steps">
-        <li v-for="n in ed.ordered" :key="n.id">
-          <button class="step" @click="ed.open(n.id)">
-            <Icon :name="n.type === 'video' ? 'film' : 'question'" :size="15" />
-            <span class="label" :class="{ empty: n.type === 'video' ? !n.videoId : !n.question }">{{ nodeLabel(n, ed.stepVideos) }}</span>
-            <span v-if="ed.course.startId === n.id" class="tag tag-start">Start</span>
-          </button>
-        </li>
-      </ol>
-      <p v-else class="muted">Nog geen onderdelen.</p>
+      <RouteTree v-if="route.items.length" :items="route.items" />
+      <p v-else class="muted" data-test="no-start">Nog geen startonderdeel.</p>
+      <section v-if="route.loose.length" class="loose" data-test="unreachable">
+        <h3>Niet bereikbaar</h3>
+        <button v-for="n in route.loose" :key="n.id" class="loose-item" @click="ed.open(n.id)">
+          {{ (n.type === 'question' ? 'Vraag: ' : '') + nodeLabel(n, ed.stepVideos) }}
+        </button>
+      </section>
     </div>
   </div>
 </template>
@@ -43,22 +75,9 @@ const ed = useEditor()
 }
 header { display: grid; gap: 6px; padding: 0 8px; }
 header p { max-width: 62ch; }
-.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  padding: 8px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  color: var(--muted);
-}
-.step:hover { background: var(--brand-soft); }
-.label { color: var(--fg); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.label.empty { color: var(--faint); }
+.loose { display: grid; gap: 4px; border-top: 1px solid var(--line); padding: 16px 8px 0; }
+.loose h3 { color: var(--muted); font-weight: 500; }
+.loose-item { border: 0; background: transparent; text-align: left; padding: 4px 0; cursor: pointer; }
+.loose-item:hover { text-decoration: underline; }
 @media (max-width: 600px) { .overview { padding: 16px; } .sheet { padding: 16px; } }
 </style>

@@ -43,7 +43,7 @@ beforeEach(async () => {
 const courseUrl = () => `/api/organisation/courses/${course.courseId}`
 const thumbnailUrl = (courseId = course.courseId, stepId = step.id, videoId = video.id) =>
   `/api/organisation/courses/${courseId}/steps/${stepId}/videos/${videoId}/thumbnail`
-const savedStep = (extra = {}) => ({ id: step.id, stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: video.id, ...extra })
+const savedStep = (extra = {}) => ({ key: 'saved', id: step.id, stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: video.id, ...extra })
 const save = (steps) => as.a.put(courseUrl()).send({ name: 'Cursus', description: 'D', steps })
 
 const CASES = {
@@ -78,17 +78,17 @@ for (const [label, makeUnavailable] of Object.entries(CASES)) {
 
     it('cannot be picked for a new step or another existing step', async () => {
       const other = await createStepRow({ versionId: course.versionId })
-      const asNew = await save([savedStep(), { stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: video.id }])
+      const asNew = await save([savedStep(), { key: 'new', stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: video.id }])
       expect(asNew.status).toBe(400)
       expect(asNew.body.error.fields['steps.1.videoId']).toBe('Kies een video uit de bibliotheek.')
-      const asOther = await save([savedStep(), { id: other.id, stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: video.id }])
+      const asOther = await save([savedStep(), { key: 'other', id: other.id, stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: video.id }])
       expect(asOther.status).toBe(400)
       expect(asOther.body.error.fields['steps.1.videoId']).toBe('Kies een video uit de bibliotheek.')
     })
 
     it('cannot come back once its removal is saved', async () => {
       expect((await save([])).status).toBe(200)
-      const restored = await save([{ stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: video.id }])
+      const restored = await save([{ key: 'restored', stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: video.id }])
       expect(restored.status).toBe(400)
       expect(restored.body.error.fields['steps.0.videoId']).toBe('Kies een video uit de bibliotheek.')
     })

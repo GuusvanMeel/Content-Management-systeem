@@ -28,8 +28,12 @@ beforeEach(async () => {
 const url = () => `/api/organisation/courses/${course.courseId}`
 const put = (body) => agent.put(url()).send(body)
 const answers = (...texts) => texts.map((answerText, i) => ({ answerText, isCorrect: i === 0 }))
-const videoStep = (extra = {}) => ({ stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: null, ...extra })
+// Every step in a save request has a key; connections point to keys (specs/005 research R1).
+let keyCount = 0
+const newKey = () => `k${++keyCount}`
+const videoStep = (extra = {}) => ({ key: newKey(), stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: null, ...extra })
 const questionStep = (extra = {}) => ({
+  key: newKey(),
   stepType: 'question',
   isStart: false,
   positionX: 0,
@@ -58,8 +62,8 @@ describe('creating, updating and deleting steps', () => {
     expect(first.id).toEqual(expect.any(Number))
     expect(second).toMatchObject({ stepType: 'question', isStart: false, questionText: 'Wat doe je eerst?', feedback: null })
     expect(second.answers).toEqual([
-      { id: expect.any(Number), answerText: 'Alarmeren', isCorrect: true },
-      { id: expect.any(Number), answerText: 'Springen', isCorrect: false },
+      { id: expect.any(Number), answerText: 'Alarmeren', isCorrect: true, nextStepId: null },
+      { id: expect.any(Number), answerText: 'Springen', isCorrect: false, nextStepId: null },
     ])
     expect(response.body).toMatchObject({ id: course.courseId, name: 'Redding', description: 'Diep bad', status: 'draft' })
     expect(await stepRows()).toHaveLength(2)
@@ -90,8 +94,8 @@ describe('creating, updating and deleting steps', () => {
         positionX: 5,
         questionText: 'Wat nu?',
         answers: [
-          { id: second.id, answerText: 'Springen', isCorrect: true },
-          { id: first.id, answerText: 'Alarmeren', isCorrect: false },
+          { id: second.id, answerText: 'Springen', isCorrect: true, nextStepId: null },
+          { id: first.id, answerText: 'Alarmeren', isCorrect: false, nextStepId: null },
         ],
       }),
     ])

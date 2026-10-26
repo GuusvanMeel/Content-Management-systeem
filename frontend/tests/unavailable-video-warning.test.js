@@ -6,6 +6,7 @@ import { provideEditor } from '../src/editor/context'
 import { toEditor } from '../src/lib/courseMapping'
 import { useCourseHistory } from '../src/lib/history'
 import { ui } from '../src/lib/ui'
+import { editorStubs } from './editorStubs'
 
 // The warning before removing a video that the organisation can no longer pick, and undo after
 // such a removal was saved (specs/004 FR-020b, FR-020d, SC-005b, research R5b).
@@ -41,7 +42,7 @@ function mountEditor(doc) {
       return () => (course.value.nodes[0] ? h(VideoNode, { node: course.value.nodes[0] }) : h('div'))
     },
   })
-  wrapper = mount(Harness)
+  wrapper = mount(Harness, { global: { stubs: editorStubs } })
 }
 
 /** Lets the history's 350 ms grouping pass. */
@@ -154,7 +155,7 @@ describe('undo after the removal was saved (FR-020d)', () => {
     save.mockResolvedValueOnce(docWith({ ...stepVideo(null, true), id: 103, video: null }))
     await ed.saveDraft()
     const payload = save.mock.calls[1][0]
-    expect(payload.steps).toEqual([{ stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: null }])
+    expect(payload.steps).toEqual([{ key: 's101', stepType: 'video', isStart: true, positionX: 0, positionY: 0, videoId: null, nextStepKey: null }])
   })
 
   it('keeps redo working', async () => {
