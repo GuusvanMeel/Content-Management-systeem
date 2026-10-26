@@ -2,6 +2,7 @@
 // draft; nothing is stored until "Opslaan als concept" (specs/004 FR-009, research R10).
 import { ref, computed, inject, provide, reactive, watch } from 'vue'
 import * as C from '../lib/course'
+import { checkCourse } from '../lib/completeness'
 import { applyKeyChanges, keyChanges, savedKeys, savedVideos, toEditor, toPayload } from '../lib/courseMapping'
 import { snapCourse } from '../lib/history'
 import { getEditorVariant, setEditorVariant } from '../lib/editorPreference'
@@ -17,6 +18,8 @@ const KEY = Symbol('editor')
 export function provideEditor({ course, stepVideos: initialVideos, doc, history, save }) {
   const stepVideos = reactive(initialVideos)
   const selectedId = ref(null)
+  const selectedEdge = ref(null) // '<sourceId>__<handle>' of a selected connection
+  const hoverEdge = ref(null) // the connection under the pointer
   const modalId = ref(null) // variant "Canvas": the part open in the dialog
   const focusRequest = ref(null) // { id, t } – the canvas centres on this part
   const showSettings = ref(false)
@@ -40,11 +43,32 @@ export function provideEditor({ course, stepVideos: initialVideos, doc, history,
 
   const ordered = computed(() => C.orderedNodes(course.value))
 
+  // The live completeness check (specs/005 FR-017). Issues present at the last click on
+  // "Opslaan als concept" are red, newer ones orange (FR-022a, research R5).
+  const issues = computed(() => checkCourse(course.value, stepVideos))
+  const flaggedIssueIds = reactive(new Set())
+  const isFlagged = (issue) => flaggedIssueIds.has(issue.id)
+
+  // The connection in focus (hovered, else selected) and its two steps: they come to the front,
+  // the rest dims, so crossing lines stay apart (verbeterronde 005, punt 4).
+  const focusEdge = computed(() => hoverEdge.value ?? selectedEdge.value)
+  const focusEnds = computed(() => {
+    if (!focusEdge.value) return null
+    const [source, handle] = focusEdge.value.split('__')
+    return [source, C.targetOf(course.value, source, handle)]
+  })
+
   function select(id) {
     selectedId.value = id
+    selectedEdge.value = null
+  }
+  function selectEdge(id) {
+    selectedEdge.value = id
+    selectedId.value = null
   }
   function clearSelection() {
     selectedId.value = null
+    selectedEdge.value = null
   }
   /** Show a part for editing, whatever the current variant. */
   function open(id) {
@@ -61,6 +85,18 @@ export function provideEditor({ course, stepVideos: initialVideos, doc, history,
     return { x: maxX + 60, y: Math.min(...nodes.map((n) => n.y)) }
   }
   const addNode = (type, pos) => C.addNode(course.value, type, pos ?? freeSpot())
+  // Connections (specs/005 FR-001 – FR-003, FR-020); all of them fall under undo.
+  const connect = (source, handle, target) => C.connect(course.value, source, handle, target)
+  const disconnect = (source, handle) => C.disconnect(course.value, source, handle)
+  const addLinked = (sourceId, handle, type, pos) => C.addLinkedNode(course.value, sourceId, handle, type, pos)
+
+  /** "Canvas ordenen" along the route, without a question; one undo puts it back (punt 7). */
+  function tidyCanvas() {
+    history.flush()
+    C.autoLayout(course.value)
+    focusRequest.value = { id: null, t: Date.now() }
+    toast('Canvas geordend', { actionLabel: 'Ongedaan maken', action: () => history.undo() })
+  }
   /** Marks a step as the only start step; `null` leaves the course without one (FR-018). */
   const setStart = (id) => (course.value.startId = id)
 
@@ -131,6 +167,9 @@ export function provideEditor({ course, stepVideos: initialVideos, doc, history,
   async function saveDraft() {
     history.flush()
     fieldErrors.value = {}
+    // FR-022a: what is still to do at this click turns red, whether or not the save succeeds.
+    flaggedIssueIds.clear()
+    for (const issue of issues.value.issues) flaggedIssueIds.add(issue.id)
     // A course needs a name and a description (FR-005): no request, the dialog opens instead.
     const missing = {}
     if (!course.value.name?.trim()) missing.name = 'Vul een naam en een beschrijving in.'
@@ -158,6 +197,13 @@ export function provideEditor({ course, stepVideos: initialVideos, doc, history,
         lostVideoNotices.delete(key)
         lostVideoNotices.add(changes[key])
       }
+      // Issue ids contain step and answer keys; keep flagged issues red under their new keys.
+      for (const id of [...flaggedIssueIds]) {
+        const renamed = id.split(':').map((part) => changes[part] ?? part).join(':')
+        if (renamed === id) continue
+        flaggedIssueIds.delete(id)
+        flaggedIssueIds.add(renamed)
+      }
       // What was sent, with the new keys, is what is stored now; later edits stay unsaved.
       savedSnapshot.value = JSON.stringify(applyKeyChanges(sent, changes))
       return true
@@ -171,11 +217,11 @@ export function provideEditor({ course, stepVideos: initialVideos, doc, history,
   }
 
   const ctx = reactive({
-    course, stepVideos, history, ordered, variant,
-    selectedId, modalId, focusRequest, showSettings,
+    course, stepVideos, history, ordered, variant, issues,
+    selectedId, selectedEdge, hoverEdge, focusEdge, focusEnds, modalId, focusRequest, showSettings,
     dirty, saving, fieldErrors, lostVideoNotices,
-    select, clearSelection, open,
-    addNode, removeNode, setStart, clearVideo, chooseVideo, confirmLosingVideo, saveDraft,
+    select, selectEdge, clearSelection, open, isFlagged,
+    addNode, addLinked, connect, disconnect, tidyCanvas, removeNode, setStart, clearVideo, chooseVideo, confirmLosingVideo, saveDraft,
   })
   provide(KEY, ctx)
   return ctx

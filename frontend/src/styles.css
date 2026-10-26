@@ -11,6 +11,9 @@
   --faint: #8b9198;
   --err: #b93a2f;
   --err-soft: #fbeceb;
+  /* "Nog te doen" in the course editor: calm, not an error (specs/005 FR-022a). */
+  --todo: #b45309;
+  --todo-soft: #fdf3e7;
   --ok: #2e7a4e;
   --dot: color-mix(in srgb, var(--brand) 22%, #d3d7dc);
   --shadow: 0 1px 2px rgba(20, 24, 28, 0.06), 0 2px 8px rgba(20, 24, 28, 0.05);

@@ -3,8 +3,12 @@ import { validateDraft } from '../../src/lib/courseDraft.js'
 
 // The draft document rules (specs/004 research R4, data-model.md § Regels).
 
-const videoStep = (extra = {}) => ({ stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: null, ...extra })
+// Every step in a save request has a key; connections point to keys (specs/005 research R1).
+let keyCount = 0
+const newKey = () => `k${++keyCount}`
+const videoStep = (extra = {}) => ({ key: newKey(), stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId: null, ...extra })
 const questionStep = (extra = {}) => ({
+  key: newKey(),
   stepType: 'question',
   isStart: false,
   positionX: 0,
@@ -208,5 +212,56 @@ describe('question steps (FR-013, FR-017)', () => {
     expect(validateDraft(draft({ steps: [questionStep({ answers })] })).steps[0].answers.map((a) => a.id)).toEqual([4, undefined])
     const bad = [{ id: 'a1', answerText: 'A', isCorrect: true }, { answerText: 'B', isCorrect: false }]
     expect(fieldsOf(draft({ steps: [questionStep({ answers: bad })] }))).toHaveProperty(['steps.0.answers.0.id'])
+  })
+})
+
+describe('keys and connections (specs/005 research R2)', () => {
+  it('requires a unique key of at most 64 characters', () => {
+    expect(fieldsOf(draft({ steps: [videoStep({ key: undefined })] }))['steps.0.key']).toBe('Dit onderdeel heeft geen geldige sleutel.')
+    expect(fieldsOf(draft({ steps: [videoStep({ key: '' })] }))).toHaveProperty(['steps.0.key'])
+    expect(fieldsOf(draft({ steps: [videoStep({ key: 'x'.repeat(65) })] }))).toHaveProperty(['steps.0.key'])
+    expect(fieldsOf(draft({ steps: [videoStep({ key: 'a' }), videoStep({ key: 'a' })] }))).toHaveProperty(['steps.1.key'])
+    expect(() => validateDraft(draft({ steps: [videoStep({ key: 'x'.repeat(64) })] }))).not.toThrow()
+  })
+
+  it('keeps next-step keys that point to a step in the request', () => {
+    const answers = [
+      { answerText: 'A', isCorrect: true, nextStepKey: 'v' },
+      { answerText: 'B', isCorrect: false, nextStepKey: 'q' },
+    ]
+    const [video, question] = validateDraft(draft({ steps: [videoStep({ key: 'v', nextStepKey: 'q' }), questionStep({ key: 'q', answers })] })).steps
+    expect(video.nextStepKey).toBe('q')
+    expect(question.answers.map((a) => a.nextStepKey)).toEqual(['v', 'q'])
+  })
+
+  it('treats missing and empty next-step keys as no next step', () => {
+    const [video, question] = validateDraft(draft({ steps: [videoStep(), questionStep()] })).steps
+    expect(video.nextStepKey).toBeNull()
+    expect(question.answers.map((a) => a.nextStepKey)).toEqual([null, null])
+    expect(validateDraft(draft({ steps: [videoStep({ nextStepKey: '' })] })).steps[0].nextStepKey).toBeNull()
+  })
+
+  it('refuses a next-step key that is not in the request', () => {
+    expect(fieldsOf(draft({ steps: [videoStep({ nextStepKey: 'elders' })] }))['steps.0.nextStepKey']).toBe(
+      'Dit vervolg bestaat niet in deze cursus.',
+    )
+    const answers = [{ answerText: 'A', isCorrect: true, nextStepKey: 'elders' }, { answerText: 'B', isCorrect: false }]
+    expect(fieldsOf(draft({ steps: [questionStep({ answers })] }))['steps.0.answers.0.nextStepKey']).toBe(
+      'Dit vervolg bestaat niet in deze cursus.',
+    )
+  })
+
+  it('refuses a video step that points to itself, but lets an answer point to its own question', () => {
+    expect(fieldsOf(draft({ steps: [videoStep({ key: 'v', nextStepKey: 'v' })] }))['steps.0.nextStepKey']).toBe(
+      'Een video-onderdeel kan niet naar zichzelf wijzen.',
+    )
+    const answers = [{ answerText: 'A', isCorrect: true, nextStepKey: 'q' }, { answerText: 'B', isCorrect: false }]
+    expect(() => validateDraft(draft({ steps: [questionStep({ key: 'q', answers })] }))).not.toThrow()
+  })
+
+  it('refuses a next step on a question itself', () => {
+    expect(fieldsOf(draft({ steps: [videoStep({ key: 'v' }), questionStep({ nextStepKey: 'v' })] }))['steps.1.nextStepKey']).toBe(
+      'Een vraag gaat verder via haar antwoorden.',
+    )
   })
 })

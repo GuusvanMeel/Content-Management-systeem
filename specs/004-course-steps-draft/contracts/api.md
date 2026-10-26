@@ -60,9 +60,9 @@ Een cursus die niet bestaat, verwijderd is of van een andere organisatie is, gee
 ## `POST /api/organisation/courses`
 
 - Body: `{ "name": string, "description": string }`.
-- `201`: het concept-document van de nieuwe cursus, met één video-onderdeel zonder video als
-  startonderdeel (FR-001a):
-  `"steps": [ { "id": 7, "stepType": "video", "isStart": true, "positionX": 0, "positionY": 0, "videoId": null, "video": null } ]`.
+- `201`: het concept-document van de nieuwe cursus. Sinds feature 005 is dat het vertakkende
+  voorbeeld van FR-028 (zie [005 contracts/api.md](../../005-course-step-branching/contracts/api.md));
+  het enkele start-video-onderdeel van FR-001a is daarmee vervangen.
 - `400 validation_failed`, `fields.name` / `fields.description`: "Vul een naam en een
   beschrijving in." of "De naam mag maximaal 255 tekens lang zijn." / "De beschrijving mag
   maximaal 1000 tekens zijn."

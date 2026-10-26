@@ -13,6 +13,7 @@ import Modal from '../components/Modal.vue'
 import DescriptionField from '../components/DescriptionField.vue'
 import CanvasEditor from './CanvasEditor.vue'
 import OverviewList from './OverviewList.vue'
+import CompletenessStatus from './CompletenessStatus.vue'
 
 const props = defineProps({ doc: Object })
 const initial = toEditor(props.doc)
@@ -30,6 +31,20 @@ const settingsMessage = computed(() => {
   if (!course.value.name.trim() || !course.value.description.trim()) return 'Vul een naam en een beschrijving in.'
   return ed.fieldErrors.name ?? ed.fieldErrors.description ?? ''
 })
+
+// Short feedback after a successful save (verbeterronde 005, punt 1): a check with "Concept
+// opgeslagen", or "Opgeslagen, nog n punten open" so that open (red) messages never read as a
+// failed save. The button turns green for a moment; with prefers-reduced-motion only the text shows.
+const FLASH_MS = 2500
+const savedFlash = ref('')
+let flashTimer = null
+async function onSave() {
+  if (!(await ed.saveDraft())) return
+  const open = ed.issues.issues.length
+  savedFlash.value = open === 0 ? 'Concept opgeslagen' : `Opgeslagen, nog ${open} ${open === 1 ? 'punt' : 'punten'} open`
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (savedFlash.value = ''), FLASH_MS)
+}
 
 const VARIANTS = [
   { key: 'popover', label: 'Canvas' },
@@ -59,6 +74,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('beforeunload', onBeforeUnload)
   history.stop()
+  clearTimeout(flashTimer)
 })
 
 // Leaving inside the app. A lost session sends the user to a login page: never block that.
@@ -98,7 +114,14 @@ onBeforeRouteLeave((to) => {
       <div class="right">
         <button class="icon-btn" :disabled="!history.canUndo.value" title="Ongedaan maken (Ctrl+Z)" @click="history.undo()"><Icon name="undo" /></button>
         <button class="icon-btn" :disabled="!history.canRedo.value" title="Opnieuw (Ctrl+Y)" @click="history.redo()"><Icon name="redo" /></button>
-        <button class="btn btn-primary" data-test="save" :disabled="!ed.dirty || ed.saving" @click="ed.saveDraft()">
+        <CompletenessStatus />
+        <span class="saved-flash" role="status" aria-live="polite" data-test="saved-flash">
+          <template v-if="savedFlash"><Icon name="check" :size="15" />{{ savedFlash }}</template>
+        </span>
+        <button class="btn btn-tidy" data-test="tidy" title="Zet de blokken volgens de route" @click="ed.tidyCanvas()">
+          <Icon name="layout" :size="16" />Canvas ordenen
+        </button>
+        <button class="btn btn-primary save" :class="{ 'just-saved': savedFlash }" data-test="save" :disabled="!ed.dirty || ed.saving" @click="onSave">
           {{ ed.saving ? 'Opslaan…' : ed.dirty ? 'Opslaan als concept' : 'Opgeslagen' }}
         </button>
       </div>
@@ -168,6 +191,17 @@ onBeforeRouteLeave((to) => {
 .name { font-size: 1.05rem; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
 .seg { margin-left: auto; }
 .right { display: flex; align-items: center; gap: 6px; }
+.saved-flash { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-size: 0.9rem; font-weight: 500; min-height: 1em; }
+.saved-flash:empty { display: none; }
+.btn-tidy { gap: 6px; font-weight: 600; }
+.save { transition: background-color 0.3s, border-color 0.3s; }
+.save.just-saved { background: var(--ok); border-color: var(--ok); color: #fff; }
+.saved-flash { animation: flash-in 0.25s ease-out; }
+@keyframes flash-in { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .save { transition: none; }
+  .saved-flash { animation: none; }
+}
 .settings { display: grid; gap: 16px; }
 .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stage > :deep(*) { flex: 1; min-height: 0; }

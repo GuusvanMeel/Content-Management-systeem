@@ -28,7 +28,10 @@ beforeEach(async () => {
   }
 })
 
-const videoStep = (videoId, extra = {}) => ({ stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId, ...extra })
+// Every step in a save request has a key; connections point to keys (specs/005 research R1).
+let keyCount = 0
+const newKey = () => `k${++keyCount}`
+const videoStep = (videoId, extra = {}) => ({ key: newKey(), stepType: 'video', isStart: false, positionX: 0, positionY: 0, videoId, ...extra })
 const courseUrlOf = (courseId) => `/api/organisation/courses/${courseId}`
 const save = (courseId, steps) => as.a.put(`/api/organisation/courses/${courseId}`).send({ name: 'Cursus', description: 'D', steps })
 

@@ -7,6 +7,7 @@ import { provideEditor } from '../src/editor/context'
 import { addNode } from '../src/lib/course'
 import { toEditor } from '../src/lib/courseMapping'
 import { useCourseHistory } from '../src/lib/history'
+import { editorStubs } from './editorStubs'
 
 // Question steps: 2 to 4 answers, exactly one correct, optional feedback (specs/004 US3,
 // FR-013, FR-017, FR-026).
@@ -28,7 +29,7 @@ function mountWith(component) {
       return () => h(component, { node: course.value.nodes[0] })
     },
   })
-  return mount(Harness)
+  return mount(Harness, { global: { stubs: editorStubs } })
 }
 
 const correctFlags = () => ed.course.nodes[0].answers.map((a) => a.correct)
@@ -84,9 +85,9 @@ describe('answers in the edit form', () => {
     expect(ed.course.nodes[0].feedback).toBe('Eerst alarmeren.')
   })
 
-  it('has no "Daarna" and no target per answer', () => {
+  it('has a "Gaat naar…" choice per answer and no "Daarna" (specs/005 FR-021)', () => {
     expect(wrapper.text()).not.toContain('Daarna')
-    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.findAll('[data-test="target"]')).toHaveLength(2)
   })
 })
 
@@ -97,6 +98,7 @@ describe('the question block on the canvas', () => {
     expect(wrapper.text()).toContain('Start')
     expect(wrapper.findAll('.answers li').map((li) => li.find('.l').text())).toEqual(['A', 'B'])
     expect(wrapper.findAll('.answers li')[0].find('.ok').exists()).toBe(true)
-    expect(wrapper.find('.vue-flow__handle').exists()).toBe(false)
+    // specs/005 FR-019: one connection point per answer, plus the incoming one.
+    expect(wrapper.findAll('.vue-flow__handle').map((h) => h.attributes('data-handle'))).toEqual(['in', ...ed.course.nodes[0].answers.map((a) => 'a-' + a.id)])
   })
 })
