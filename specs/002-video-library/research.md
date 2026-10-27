@@ -358,3 +358,27 @@ geen `client_max_body_size 10g` of urenlange time-out te komen. Wat verandert:
   Backend: `backend/src/lib/videoMessages.js`; frontend: `frontend/src/lib/videoMessages.js`.
   Beide hebben dezelfde teksten; een test aan elke kant vergelijkt ze met deze tabel.
 - **Rationale**: docenten zonder technische kennis moeten zelf weten wat ze moeten doen (NFR-03).
+
+## R16. Bestanden van verwijderde video's opruimen (FR-020a, aanvulling 2026-10-27)
+
+- **Decision**: `backend/src/jobs/videoFileCleanup.js`, opgezet zoals de upload-opruimtaak (R9):
+  bij het starten van de API en daarna elke 15 minuten. Per ronde worden de video's gezocht met
+  `deletedAt` gevuld waarnaar geen enkel onderdeel (`CourseStep`) verwijst, ook niet van een
+  verwijderde cursus; van elk worden videobestand en thumbnail gewist met `videoStorage.remove`
+  (een al ontbrekend bestand is geen fout). Een fout bij één video wordt gelogd en stopt de andere
+  niet. De log meldt alleen iets als er echt bestanden zijn gewist.
+- **Rationale**: tot nu toe bleven bestanden van verwijderde video's voorgoed staan: verwijderen
+  zette alleen `deletedAt`, en geen taak ruimde ze op. Video's zijn groot (tot 10 GB) en de
+  opslag is één VPS (constitution II). De rij en de verwijzingen blijven (constitution V). Elke
+  verwijzing telt, ook vanuit een verwijderde cursus: dat is de veilige kant, want zo verdwijnt
+  nooit een bestand dat een cursus nog kan gebruiken. Er is geen kolom die bijhoudt dat de
+  bestanden weg zijn: de taak probeert het elke ronde opnieuw, wat goedkoop is (een `unlink` op
+  een ontbrekend bestand) en het schema eenvoudig houdt. Geen wachttijd of instelling: de video is
+  al uit de bibliotheek en kan niet opnieuw worden gekozen (specs/004 R5), dus alleen een
+  verwijzing vanuit een cursus is een reden om te bewaren.
+- **Alternatives considered**: de bestanden direct bij het verwijderen wissen (kan niet: een
+  cursus kan de video nog gebruiken, specs/004 FR-016); de rij echt verwijderen (breekt
+  verwijzingen en de versiegeschiedenis, constitution V); een bewaartermijn als instelling (niet
+  gevraagd; maakt het gedrag minder voorspelbaar); een kolom die bijhoudt dat de bestanden weg
+  zijn (afgewezen: extra schema voor weinig winst); verwijzingen vanuit verwijderde cursussen
+  negeren (afgewezen: minder veilig).

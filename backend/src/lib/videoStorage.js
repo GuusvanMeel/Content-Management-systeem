@@ -47,12 +47,14 @@ export async function save(key, sourcePath) {
   await rename(sourcePath, target)
 }
 
-/** Removes a stored file; a file that is already gone is not an error. */
+/** Removes a stored file; a file that is already gone is not an error. Returns whether a file was removed. */
 export async function remove(key) {
   try {
     await unlink(getPath(key))
+    return true
   } catch (err) {
     if (err.code !== 'ENOENT') throw err
+    return false
   }
 }
 

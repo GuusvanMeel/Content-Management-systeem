@@ -39,9 +39,11 @@ cursus: later verwijzen cursusstappen (`CourseStep.videoId` in het ERD) naar een
 
 - Een rij ontstaat **alleen** na een geslaagde controle (research R4). Een onvoltooide of
   afgekeurde upload laat geen rij achter.
-- Zacht verwijderd: bestand en thumbnail blijven op schijf en de rij blijft bestaan; de video
-  verschijnt niet meer in de bibliotheek en de thumbnailroute geeft `404`. Definitief
-  verwijderen hoort bij de feature voor cursussen.
+- Zacht verwijderd: de rij blijft bestaan; de video verschijnt niet meer in de bibliotheek en de
+  thumbnailroute van de bibliotheek geeft `404`. Bestand en thumbnail blijven op schijf zolang een
+  cursusstap (ook van een verwijderde cursus) naar de video verwijst.
+- Daarna wist de opruimtaak bestand en thumbnail (FR-020a). De rij, `storageKey` en
+  `thumbnailStorageKey` blijven; of de bestanden er nog zijn, wordt niet bijgehouden.
 - Herstellen valt buiten deze feature.
 
 ### Queries
@@ -52,6 +54,8 @@ cursus: later verwijzen cursusstappen (`CourseStep.videoId` in het ERD) naar een
   deletedAt IS NULL`; geen rij → `404` (ook voor een video van een andere organisatie).
 - **Verwijderen**: `UPDATE Video SET deletedAt = UTC_TIMESTAMP() WHERE id = ? AND
   ownerOrganisationId = ? AND deletedAt IS NULL`; 0 rijen → `404`.
+- **Op te ruimen** (FR-020a): `deletedAt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM CourseStep
+  WHERE videoId = Video.id)`.
 
 ## Onvoltooide upload (geen tabel)
 

@@ -53,6 +53,16 @@ organisaties, sessieregels).
   in de browser (uploadindicator) afgedwongen en is instelbaar; de server beschermt zich alleen
   via de controle op vrije schijfruimte (FR-004a).
 
+### Session 2026-10-27 (aanvulling: bestanden van verwijderde video's opruimen)
+
+- Q: Worden de bestanden van een zacht verwijderde video ooit van schijf gewist? → A: Ja. Tot nu
+  toe gebeurde dat nooit: verwijderen zette alleen `deletedAt`. Een opruimtaak wist het
+  videobestand en de thumbnail zodra geen enkel onderdeel van een cursus nog naar de video
+  verwijst, zonder wachttijd en zonder nieuwe instelling (FR-020a). De rij blijft bestaan.
+- Q: Mogen de bestanden weg als de video alleen nog in een zacht verwijderde cursus zit? → A: Nee.
+  Elke verwijzing vanuit een cursusstap houdt de bestanden vast, ook vanuit een verwijderde
+  cursus. Zo blijft niets weg dat een cursus later nog nodig kan hebben.
+
 ### Session 2026-10-22 (na de handmatige test)
 
 - Q: Wanneer wordt een bestand gecontroleerd? → A: Alle controles (extensie, grootte, codec,
@@ -385,9 +395,15 @@ niet meer in de bibliotheek staat, terwijl het bestand en de gegevens nog bestaa
 - **FR-019**: De docent MUST een video kunnen verwijderen na een expliciete bevestiging met de
   naam van de video.
 - **FR-020**: Verwijderen MUST zacht zijn: de video krijgt een verwijdertijdstip, verdwijnt uit
-  de bibliotheek, en het videobestand, de thumbnail en de gegevens blijven bewaard. Definitief
-  verwijderen (wanneer geen gepubliceerde cursus de video meer gebruikt) valt onder de feature
-  voor cursussen.
+  de bibliotheek, en de gegevens blijven bewaard. Het videobestand en de thumbnail blijven
+  bewaard zolang een cursusstap naar de video verwijst (FR-020a).
+- **FR-020a** *(aanvulling 2026-10-27)*: Een opruimtaak MUST bij het starten van de API en daarna
+  periodiek het videobestand en de thumbnail wissen van elke zacht verwijderde video waarnaar geen
+  enkel onderdeel (`CourseStep`) verwijst, ook niet een onderdeel van een zacht verwijderde
+  cursus, zonder wachttijd of instelling. Een video waarnaar nog een onderdeel verwijst, blijft
+  staan (specs/004 FR-016) en wordt bij een volgende ronde alsnog opgeruimd zodra dat niet meer
+  zo is. De rij blijft bestaan. Er wordt niet bijgehouden dat de bestanden al weg zijn: elke
+  ronde probeert het opnieuw, en een bestand dat al weg is, is geen fout.
 
 **Afscherming en eigendom**
 

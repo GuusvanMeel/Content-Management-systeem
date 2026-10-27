@@ -101,6 +101,11 @@ hervatbaar geüpload met het tus-protocol en op de server nog een keer gecontrol
 
 Na een wijziging: `docker compose up -d api`.
 
+Een verwijderde video blijft eerst als rij bestaan (zacht verwijderd). Een opruimtaak in de API
+(bij het starten en daarna elke 15 minuten) wist het videobestand en de thumbnail zodra geen
+onderdeel van een cursus er nog naar verwijst, ook niet van een verwijderde cursus; daarvoor is
+geen instelling (specs/002 FR-020a).
+
 De bibliotheek is gedeeld tussen organisaties (specs/003). Per video kiest de uploader
 "Algemeen beschikbaar" (alle organisaties), "Selectief beschikbaar" (gekozen organisaties) of
 "Alleen eigen organisatie", en optioneel een beschrijving van maximaal 1000 tekens. Alleen de

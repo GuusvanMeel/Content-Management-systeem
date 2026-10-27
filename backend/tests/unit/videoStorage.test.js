@@ -25,7 +25,7 @@ describe('videoStorage', () => {
 
   it('does not fail when removing a file that does not exist', async () => {
     const { thumbnailStorageKey } = storage.newVideoKeys(7)
-    await expect(storage.remove(thumbnailStorageKey)).resolves.toBeUndefined()
+    await expect(storage.remove(thumbnailStorageKey)).resolves.toBe(false)
   })
 
   it('creates keys in the documented format', () => {

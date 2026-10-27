@@ -3,6 +3,7 @@ import { createApp } from './app.js'
 import { config } from './config/env.js'
 import { startSessionCleanup } from './jobs/sessionCleanup.js'
 import { startUploadCleanup } from './jobs/uploadCleanup.js'
+import { startVideoFileCleanup } from './jobs/videoFileCleanup.js'
 
 // A tus Upload-Metadata header with a description of 1000 characters and the chosen organisations
 // can reach about 13 KB, while Node allows 16 KB for all headers together (specs/003 research R4).
@@ -19,3 +20,4 @@ server.requestTimeout = 15 * 60 * 1000
 
 startSessionCleanup()
 startUploadCleanup()
+startVideoFileCleanup()
