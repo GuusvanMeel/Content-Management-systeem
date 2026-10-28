@@ -34,7 +34,7 @@ setup('inloggen als testorganisatie', async ({ page }) => {
     data: { name, loginCode , password: process.env.E2E_PASSWORD /*, overige verplichte velden */ },
   });
 
-  expect(res.ok()).toBeTruthy();
+  expect(res.ok(), `Organisatie aanmaken mislukt: ${res.status()} ${await res.text()}`).toBeTruthy();
   const org = await res.json(); // controleer of id en code erin zitten
   await api.dispose();
 
