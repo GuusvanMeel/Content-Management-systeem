@@ -9,6 +9,7 @@ dbdata/
 uploads/
 # local TLS certificates (nginx/dev-cert.sh)
 nginx/certs/
+nginx-log.txt
 # Software Ideas Modeler user state and Office lock files
 docs/*.simp.user
 docs/~$*
