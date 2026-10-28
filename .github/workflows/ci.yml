@@ -105,7 +105,7 @@ jobs:
   # Playwright (end-to-end tests in a browser) comes later: its job goes here, after tests.
   e2e:
     name: End-to-end tests (Playwright)
-    needs: tests
+    # needs: tests
     runs-on: ubuntu-latest
     env:  
       # Alleen voor de wegwerp-omgeving in deze job; geen geheimen. Het wachtwoord van de admin is
