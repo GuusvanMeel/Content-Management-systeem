@@ -36,10 +36,11 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    { name: 'setup', testMatch: /auth\.setup\.js/ },
+    { name: 'setup', testMatch: /auth\.setup\.js/, teardown: 'cleanup' },
+    { name: 'cleanup', testMatch: /cleanup\.teardown\.js/ },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/org.json'  },
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/org.json',  extraHTTPHeaders: { 'X-Requested-With': 'cms' },  },
       dependencies: ['setup'],
     },
 
