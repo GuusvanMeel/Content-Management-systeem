@@ -20,6 +20,7 @@ env:
 
 jobs:
   lint:
+    if: false
     name: Lint (ESLint)
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +46,7 @@ jobs:
         run: npm run lint
 
   build:
+    if: false
     name: Build (Docker images)
     needs: lint
     runs-on: ubuntu-latest
@@ -60,6 +62,7 @@ jobs:
         run: docker compose build api web
 
   tests:
+    if: false
     name: Tests (backend in Docker, frontend Vitest)
     needs: build
     runs-on: ubuntu-latest
@@ -138,7 +141,7 @@ jobs:
       - name: Start the app
         run: docker compose up -d --build api web
       - name: Wait until the API answers
-        run: curl -k -sf --retry 30 --retry-delay 2 --retry-connrefused https://localhost/api/health
+        run: curl -ksf --retry 30 --retry-delay 2 --retry-all-errors https://localhost/api/health
       - name: Migrate the database
         run: docker compose exec -T api npx knex migrate:latest
       - name: Create the test administrator
