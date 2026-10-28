@@ -112,7 +112,7 @@ jobs:
       # minimaal 10 tekens (create-admin.js).
       E2E_ADMIN_LOGIN: testadmin
       E2E_ADMIN_PASSWORD: ci-e2e-admin-password
-      E2E_password: ci-e2e-org-password
+      E2E_PASSWORD: ci-e2e-org-password
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
