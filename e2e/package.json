@@ -3,7 +3,16 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+  "test": "playwright test",
+  "test:ui": "playwright test --ui",
+  "test:headed": "playwright test --headed",
+  "report": "playwright show-report",
+  "codegen": "playwright codegen --ignore-https-errors https://localhost/login",
+  "codegen:save": "playwright codegen --ignore-https-errors --save-storage=playwright/.auth/dev-org.json https://localhost/login",
+  "codegen:org": "playwright codegen --ignore-https-errors --load-storage=playwright/.auth/dev-org.json https://localhost/",
+  "codegen:admin": "playwright codegen --ignore-https-errors --load-storage=playwright/.auth/admin.json https://localhost/admin"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

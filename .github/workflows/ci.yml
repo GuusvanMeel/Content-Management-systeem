@@ -132,6 +132,7 @@ jobs:
           UPLOADS_DIR=/tmp/uploads
           VIDEOS_DIR=/tmp/videos
           SESSION_IDLE_TIMEOUT_MINUTES=60
+          VIDEO_MIN_FREE_SPACE_GB=1
           EOF
       - name: Create self-signed certificate
         run: sh nginx/dev-cert.sh
